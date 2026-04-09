@@ -48,7 +48,7 @@ function registerLmSecurityCli(options: OpenClawPluginCliContext & {uploadDetect
     .option("-j, --json", "Output results in JSON format")
     .action((options: { json?: boolean }) => {
       const { json } = options;
-      const { results, config } = getFullScanResults();
+      const { results } = getFullScanResults();
       
       if (json) {
         console.log(JSON.stringify({
@@ -97,7 +97,6 @@ export default function registerCli(
 ) {
   api.registerCli(
     ({ program }) =>{
-      console.log(program)
       registerLmSecurityCli({
         program,
         logger,

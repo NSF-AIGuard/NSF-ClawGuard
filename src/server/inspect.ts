@@ -1,6 +1,5 @@
 import { dbQuerySecurityEvents, ensureDb } from "../database.js";
 import type { IncomingMessage, ServerResponse } from "http";
-import type { Logger } from "../types.js";
 
 export type ThreatLevel = "critical" | "high" | "medium" | "low" | "info";
 
