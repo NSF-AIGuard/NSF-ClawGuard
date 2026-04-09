@@ -12,8 +12,8 @@ import type  FormData  from "form-data";
 function registerLmSecurityCli(options: OpenClawPluginCliContext & {uploadDetectFile: (file: FormData) => Promise<void>}) {
   const { program, logger,uploadDetectFile } = options;
   const root = program
-    .command("NSFClawGuard")
-    .description("NSFClawGuard plugin commands")
+    .command("nsf-clawguard")
+    .description("nsf-clawguard plugin commands")
   
   // 上传检测命令
   root
@@ -96,12 +96,13 @@ export default function registerCli(
   uploadDetectFile: (file: FormData) => Promise<void>,
 ) {
   api.registerCli(
-    ({ program }) =>
+    ({ program }) =>{
+      console.log(program)
       registerLmSecurityCli({
         program,
         logger,
         uploadDetectFile
-      }),
-    { commands: ["NSFClawGuard "] },
+      })},
+    { commands: ["nsf-clawguard"] },
   );
 }

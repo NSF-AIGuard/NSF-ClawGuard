@@ -1,6 +1,6 @@
 {
-  "id": "NSF-ClawGuard",
-  "name": "NSF-ClawGuard",
+  "id": "nsf-clawguard",
+  "name": "nsf-clawguard",
   "description": "Real-time monitoring of the security status on the client side, intelligently identifying risks and providing handling solutions",
   "version": "1.0.0",
   "configSchema": {
