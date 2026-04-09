@@ -1,8 +1,8 @@
 {
-  "name": "NSF-ClawGuard",
+  "name": "nsf-clawguard",
   "version": "1.0.0",
   "description": "NSF-ClawGuard - Real-time monitoring of the security status on the client side, intelligently identifying risks and providing handling solutions",
-  "main": "./index.ts",
+  "main": "./dist/index.mjs",
   "type": "module",
   "scripts": {
     "build": "tsup",
@@ -11,6 +11,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "openclaw",
     "plugin",
@@ -27,7 +30,7 @@
   },
   "openclaw": {
     "extensions": [
-      "./index.ts"
+      "./dist/index.mjs"
     ],
     "plugins": [
       "NSF-ClawGuard"

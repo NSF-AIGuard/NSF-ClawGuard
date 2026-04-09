@@ -12,8 +12,8 @@ import type  FormData  from "form-data";
 function registerLmSecurityCli(options: OpenClawPluginCliContext & {uploadDetectFile: (file: FormData) => Promise<void>}) {
   const { program, logger,uploadDetectFile } = options;
   const root = program
-    .command("lmsecurity")
-    .description("lm-security plugin commands")
+    .command("NSFClawGuard")
+    .description("NSFClawGuard plugin commands")
   
   // 上传检测命令
   root
@@ -102,6 +102,6 @@ export default function registerCli(
         logger,
         uploadDetectFile
       }),
-    { commands: ["lmsecurity"] },
+    { commands: ["NSFClawGuard "] },
   );
 }
