@@ -28,6 +28,7 @@ export default defineConfig({
     },
     build: {
         // 指定输出目录为web
+        emptyOutDir: true, 
         outDir: '../web',
         // 代码分割和分包配置
         rollupOptions: {

@@ -9,12 +9,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Define directories
-const lmSecurityDir = path.join(__dirname, ".."); // lm-security directory
+const lmSecurityDir = path.join(__dirname, ".."); 
 const uiDir = path.join(lmSecurityDir, "src", "server", "ui");
 const webDir = path.join(lmSecurityDir, "src", "server", "web");
 const distDir = path.join(lmSecurityDir, "dist");
-const projectRoot = path.dirname(lmSecurityDir); // lm-openclaw-security-plugin
-const outputDir = path.join(projectRoot, "output", 'lm-security');
 
 // Helper function to execute commands
 function executeCommand(command, cwd, description) {
@@ -70,43 +68,8 @@ if (fs.existsSync(webDir)) {
   console.warn("Warning: web directory does not exist, skipping copy.");
 }
 
-// Step 4: Copy required files to output directory
 console.log("\n=== Step 4: Creating output directory and copying files ===");
 
-// Clean and create output directory
-if (fs.existsSync(outputDir)) {
-  console.log("Cleaning existing output directory...");
-  fs.rmSync(outputDir, { recursive: true, force: true });
-}
-fs.mkdirSync(outputDir, { recursive: true });
 
-// Files/directories to copy
-const itemsToCopy = [
-  { name: "dist", type: "dir" },
-  { name: "clawdbot.plugin.json", type: "file" },
-  { name: "openclaw.plugin.json", type: "file" },
-  { name: "package-lock.json", type: "file" },
-  { name: "package.json", type: "file" }
-];
-
-// Copy each item
-for (const item of itemsToCopy) {
-  const srcPath = path.join(lmSecurityDir, item.name);
-  const destPath = path.join(outputDir, item.name);
-  
-  if (!fs.existsSync(srcPath)) {
-    console.warn(`Warning: ${item.name} does not exist, skipping.`);
-    continue;
-  }
-  
-  if (item.type === "dir") {
-    console.log(`Copying directory: ${item.name}`);
-    copyDirectoryRecursive(srcPath, destPath);
-  } else {
-    console.log(`Copying file: ${item.name}`);
-    fs.copyFileSync(srcPath, destPath);
-  }
-}
 
 console.log("\n=== Build completed successfully! ===");
-console.log(`Output directory created at: ${outputDir}`);
