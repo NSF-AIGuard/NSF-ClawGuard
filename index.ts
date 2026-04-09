@@ -47,12 +47,9 @@ export default async function register(api: OpenClawPluginApi) {
   const pluginVersion = api.version;
   const hackLogger = initializeLogger(api);
   const ok = requestManager.initialize(hackLogger);
-
-  await ensureDb();
-
   registerCli(api, hackLogger, uploadDetectFile);
   registerHttpRoute(api);
-
+  await ensureDb();
   // 启动时运行配置文件安全扫描
   const { results } = getScanResults();
   if (results.length > 0) {
