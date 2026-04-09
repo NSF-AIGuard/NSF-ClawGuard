@@ -12,7 +12,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "files": [
-    "dist"
+    "dist",
+    "openclaw.plugin.json",
+    "clawdbot.plugin.json"
   ],
   "keywords": [
     "openclaw",
