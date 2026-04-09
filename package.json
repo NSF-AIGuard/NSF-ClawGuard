@@ -1,0 +1,46 @@
+{
+  "name": "NSF-ClawGuard",
+  "version": "1.0.0",
+  "description": "NSF-ClawGuard - Real-time monitoring of the security status on the client side, intelligently identifying risks and providing handling solutions",
+  "main": "./index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "build:full": "node scripts/build.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "security",
+    "monitoring"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@types/form-data": "^2.2.1",
+    "axios": "^1.13.6",
+    "form-data": "^4.0.5",
+    "sql.js": "^1.11.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "plugins": [
+      "NSF-ClawGuard"
+    ]
+  },
+  "devDependencies": {
+    "@types/archiver": "^7.0.0",
+    "@types/node": "^25.4.0",
+    "@types/sql.js": "^1.4.11",
+    "@vitest/coverage-v8": "^4.1.1",
+    "archiver": "^7.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.1"
+  }
+}

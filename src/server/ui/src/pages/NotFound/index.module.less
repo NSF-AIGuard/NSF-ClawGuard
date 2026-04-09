@@ -1,0 +1,310 @@
+.notFound {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: #0d1117;
+  overflow: hidden;
+  padding: 20px;
+}
+
+/* 背景装饰 */
+.bgDecoration {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.gridOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(85, 167, 34, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(85, 167, 34, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridMove 25s linear infinite;
+}
+
+.glowCircle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(85, 167, 34, 0.06) 0%,
+    rgba(85, 167, 34, 0.02) 40%,
+    transparent 70%
+  );
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+.scanLine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(85, 167, 34, 0.15),
+    transparent
+  );
+  animation: scanDown 6s ease-in-out infinite;
+}
+
+/* 主内容 */
+.content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+  padding: 48px 40px;
+  background: rgba(28, 35, 51, 0.85);
+  border-radius: 12px;
+  border: 1px solid #30363d;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 80px rgba(85, 167, 34, 0.04);
+  backdrop-filter: blur(8px);
+
+  @media (max-width: 768px) {
+    padding: 32px 20px;
+  }
+}
+
+/* 404 数字 */
+.errorCode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.codeDigit,
+.codeDigitMiddle {
+  font-size: 96px;
+  font-weight: 700;
+  color: rgba(230, 237, 243, 0.85);
+  line-height: 1;
+  text-shadow: 0 0 40px rgba(85, 167, 34, 0.15);
+
+  @media (max-width: 768px) {
+    font-size: 64px;
+  }
+}
+
+.codeDigitMiddle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 96px;
+
+  @media (max-width: 768px) {
+    width: 56px;
+    height: 64px;
+  }
+}
+
+.shieldIcon {
+  width: 60px;
+  height: 72px;
+
+  @media (max-width: 768px) {
+    width: 40px;
+    height: 48px;
+  }
+}
+
+.shieldPath {
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  animation: drawShield 2s ease forwards;
+}
+
+.checkPath {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: drawCheck 0.8s ease forwards 1s;
+}
+
+/* 副标题 */
+.subtitle {
+  font-size: 22px;
+  font-weight: 600;
+  color: rgba(230, 237, 243, 0.85);
+  margin: 0 0 12px 0;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+}
+
+/* 描述文字 */
+.description {
+  font-size: 14px;
+  color: rgba(230, 237, 243, 0.55);
+  line-height: 1.8;
+  margin: 0 0 32px 0;
+
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
+}
+
+/* 操作按钮 */
+.actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.btnPrimary {
+  min-width: 140px;
+  height: 44px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  background: #55a722;
+  border-color: #55a722;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #4a961b !important;
+    border-color: #4a961b !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(85, 167, 34, 0.35);
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+.btnDefault {
+  min-width: 140px;
+  height: 44px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  background: transparent;
+  border-color: #30363d;
+  color: rgba(230, 237, 243, 0.65);
+  transition: all 0.3s ease;
+
+  &:hover {
+    color: #55a722 !important;
+    border-color: #55a722 !important;
+    background: rgba(85, 167, 34, 0.08) !important;
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+/* 底部信息 */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(230, 237, 243, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.footerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #55a722;
+  box-shadow: 0 0 8px rgba(85, 167, 34, 0.4);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+/* 动画定义 */
+@keyframes gridMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 60px 60px;
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+@keyframes scanDown {
+  0% {
+    top: -2px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes drawShield {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(85, 167, 34, 0.4);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 4px rgba(85, 167, 34, 0.2);
+  }
+}

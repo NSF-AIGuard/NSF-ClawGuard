@@ -1,0 +1,170 @@
+@primary-color: #55a722;
+@info-color: #1890ff;
+@success-color: #52c41a;
+@danger-color: #ff4d4f;
+@text-primary: rgba(230, 237, 243, 0.85);
+@text-secondary: rgba(230, 237, 243, 0.65);
+@text-tertiary: rgba(230, 237, 243, 0.45);
+@text-disabled: rgba(230, 237, 243, 0.35);
+@dark-header: #161b22;
+@border-color: #30363d;
+
+// Cell styles
+.idCell {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: @text-secondary;
+}
+
+.eventTag {
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 5px;
+  margin: 0;
+  border-color: transparent;
+}
+
+.timeCell {
+  font-size: 12px;
+}
+
+.ipCell {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: @text-primary;
+}
+
+.clientCell {
+  font-size: 12px;
+}
+
+.clientName {
+  font-weight: 500;
+  color: @text-primary;
+}
+
+.clientVersion {
+  color: @text-tertiary;
+  margin-left: 4px;
+}
+
+.connIdCell {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: @primary-color;
+}
+
+.authModeTag {
+  border-color: @info-color;
+  color: @info-color;
+  background: rgba(24, 144, 255, 0.06);
+}
+
+.noAuthMode {
+  color: @text-disabled;
+}
+
+.reasonCell {
+  font-size: 12px;
+}
+
+.reasonError {
+  color: @danger-color;
+}
+
+.reasonDefault {
+  color: #999;
+}
+
+// Stats bar
+.statsBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: @dark-header;
+  margin-bottom: 16px;
+  border-bottom: 1px solid @border-color;
+}
+
+.statsLeft {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: @text-secondary;
+}
+
+.statValueSuccess {
+  font-size: 14px;
+  font-weight: 600;
+  color: @success-color;
+}
+
+.statValueDanger {
+  font-size: 14px;
+  font-weight: 600;
+  color: @danger-color;
+}
+
+.statValueDefault {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8c8c8c;
+}
+
+.statValuePrimary {
+  font-size: 14px;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.filterRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.searchInput {
+  width: 240px;
+}
+
+.filterSelect {
+  width: 120px;
+}
+
+.tableWrapper {
+  padding: 0 24px;
+}
+
+// Expanded row
+.expandedRow {
+  padding: 8px 0;
+}
+
+.expandedContent {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.expandedSection {
+  flex: 1;
+  min-width: 300px;
+}
+
+.expandedTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: @text-primary;
+  margin-bottom: 8px;
+}

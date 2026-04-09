@@ -1,0 +1,474 @@
+@primary-color: #55a722;
+@primary-light: rgba(85, 167, 34, 0.15);
+@primary-lighter: rgba(85, 167, 34, 0.06);
+@dark-bg: #0d1117;
+@dark-card: #1c2333;
+@dark-card-hover: #1e2d3d;
+@dark-header: #161b22;
+@text-primary: #fff;
+@text-secondary: rgba(230, 237, 243, 0.65);
+@text-tertiary: rgba(230, 237, 243, 0.45);
+@border-color: #30363d;
+@border-secondary: #21262d;
+@success-color: #52c41a;
+@danger-color: #ff4d4f;
+@warning-color: #faad14;
+@info-color: #1890ff;
+
+.auditLog {
+  min-height: 100%;
+
+  // 页面头部
+  &-header {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    &-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: @text-primary;
+      }
+    }
+
+    &-subtitle {
+      margin: 8px 0 0 0;
+      font-size: 12px;
+      color:rgba(255,255,255,.6);
+    }
+
+    &-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: @primary-light;
+      border: 1px solid rgba(85, 167, 34, 0.3);
+      color: @primary-color;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+
+      .pulse-dot {
+        width: 6px;
+        height: 6px;
+        background: @primary-color;
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+      }
+    }
+  }
+
+  // 统计卡片区域
+  &-stats {
+    margin-bottom: 24px;
+
+    .statCard {
+      border-radius: 10px;
+      border: 1px solid @border-color;
+      background: @dark-card;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      position: relative;
+
+      &:hover {
+        box-shadow: 0 6px 16px rgba(85, 167, 34, 0.15);
+        border-color: rgba(85, 167, 34, 0.4);
+        transform: translateY(-2px);
+        background: @dark-card-hover;
+      }
+
+      .statCardInner {
+        display: flex;
+        align-items: center;
+        padding: 20px;
+
+        .statIcon {
+          width: 52px;
+          height: 52px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 24px;
+          margin-right: 16px;
+          flex-shrink: 0;
+
+          &.session {
+            background: rgba(85, 167, 34, 0.15);
+            color: @primary-color;
+          }
+          &.token {
+            background: rgba(24, 144, 255, 0.15);
+            color: @info-color;
+          }
+          &.tool {
+            background: rgba(250, 173, 20, 0.15);
+            color: @warning-color;
+          }
+          &.auth {
+            background: rgba(82, 196, 26, 0.15);
+            color: @success-color;
+          }
+        }
+
+        .statContent {
+          flex: 1;
+
+          .statLabel {
+            font-size: 13px;
+            color: @text-secondary;
+            margin-bottom: 4px;
+          }
+
+          .statValue {
+            font-size: 26px;
+            font-weight: 700;
+            color: @text-primary;
+            line-height: 1.2;
+          }
+
+          .statExtra {
+            font-size: 12px;
+            color: @text-tertiary;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+
+            .rate-up {
+              color: @success-color;
+            }
+            .rate-down {
+              color: @danger-color;
+            }
+          }
+        }
+      }
+
+      // 顶部装饰线
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+      }
+
+      &.card-session::before { background: linear-gradient(90deg, @primary-color, rgba(85, 167, 34, 0.3)); }
+      &.card-token::before { background: linear-gradient(90deg, @info-color, rgba(24, 144, 255, 0.3)); }
+      &.card-tool::before { background: linear-gradient(90deg, @warning-color, rgba(250, 173, 20, 0.3)); }
+      &.card-auth::before { background: linear-gradient(90deg, @success-color, rgba(82, 196, 26, 0.3)); }
+    }
+  }
+
+  // Tab内容区域
+  &-content {
+    .tabCard {
+      border-radius: 10px;
+      border: 1px solid @border-color;
+      background: @dark-card;
+      overflow: hidden;
+
+      :global {
+        .ant-tabs-nav {
+          background: @dark-header;
+          border-bottom: 1px solid @border-color;
+          padding: 0 16px;
+          margin: 0;
+
+          .ant-tabs-tab {
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: @text-secondary;
+            transition: all 0.3s;
+
+            &:hover {
+              color: @primary-color;
+            }
+
+            .ant-tabs-tab-btn {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+          }
+
+          .ant-tabs-tab-active {
+            .ant-tabs-tab-btn {
+              color: @primary-color;
+              font-weight: 600;
+            }
+          }
+
+          .ant-tabs-ink-bar {
+            background: @primary-color;
+            height: 3px;
+            border-radius: 2px;
+          }
+        }
+
+        .ant-tabs-content-holder {
+          padding: 0;
+        }
+
+        .ant-card-head {
+          border-bottom: 1px solid @border-color;
+          background: @dark-header;
+
+          .ant-card-head-title {
+            font-weight: 600;
+            color: @text-primary;
+            font-size: 15px;
+          }
+        }
+      }
+    }
+  }
+
+  // 表格通用样式
+  :global {
+    .ant-table {
+      border-radius: 8px;
+      background: @dark-card;
+
+      .ant-table-thead > tr > th {
+        background: @dark-header;
+        color: @text-primary;
+        font-weight: 600;
+        font-size: 13px;
+        border-bottom: 2px solid @border-color;
+      }
+
+      .ant-table-tbody > tr {
+        transition: all 0.2s;
+
+        > td {
+          font-size: 13px;
+          color: @text-secondary;
+          border-bottom: 1px solid @border-secondary;
+        }
+
+        &:hover > td {
+          background: @primary-lighter !important;
+        }
+      }
+
+      .ant-table-tbody > tr.failure-row > td {
+        background: rgba(255, 77, 79, 0.08) !important;
+      }
+
+      .ant-table-tbody > tr.timeout-row > td {
+        background: rgba(250, 173, 20, 0.08) !important;
+      }
+    }
+
+    .ant-tag {
+      border-radius: 4px;
+      font-weight: 500;
+      font-size: 12px;
+      padding: 2px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .ant-badge-status-dot {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  // 筛选栏
+  &-filter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    background: @dark-header;
+    border-bottom: 1px solid @border-color;
+
+    .filterLabel {
+      font-size: 13px;
+      color: @text-secondary;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+  }
+
+  // 终端风格代码展示
+  &-terminal {
+    background: #0d1117;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #e0e0e0;
+    overflow-x: auto;
+    position: relative;
+    border: 1px solid @border-color;
+
+    &::before {
+      content: '';
+      display: block;
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff5f57;
+      box-shadow: 16px 0 0 #febc2e, 32px 0 0 #28c840;
+    }
+
+    .terminalContent {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .terminalLine {
+      display: flex;
+
+      .lineNumber {
+        color: #555;
+        margin-right: 16px;
+        user-select: none;
+        min-width: 24px;
+        text-align: right;
+      }
+
+      .lineContent {
+        flex: 1;
+      }
+    }
+
+    .key { color: #7ec699; }
+    .string { color: #f9d423; }
+    .number { color: #f08d49; }
+    .bool { color: #cc99cd; }
+  }
+
+  // Token消耗柱状条
+  &-tokenBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .barTrack {
+      flex: 1;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+
+      .barInput {
+        height: 100%;
+        background: linear-gradient(90deg, @info-color, #69c0ff);
+        transition: width 0.6s ease;
+      }
+
+      .barOutput {
+        height: 100%;
+        background: linear-gradient(90deg, @primary-color, #95de64);
+        transition: width 0.6s ease;
+      }
+    }
+
+    .barValue {
+      font-size: 12px;
+      color: @text-secondary;
+      font-weight: 500;
+      min-width: 60px;
+      text-align: right;
+    }
+  }
+
+  // 空状态
+  &-empty {
+    text-align: center;
+    padding: 40px;
+    color: @text-tertiary;
+  }
+}
+
+// 脉冲动画
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.5);
+  }
+}
+
+// 安全扫描线动画
+@keyframes scanline {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.tabIcon {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.exportButton {
+  background: @primary-color;
+  border-color: @primary-color;
+}
+
+// 响应式
+@media (max-width: 768px) {
+  .auditLog {
+    &-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    &-stats {
+      .statCard {
+        .statCardInner {
+          padding: 16px;
+
+          .statIcon {
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+            margin-right: 12px;
+          }
+
+          .statContent {
+            .statValue {
+              font-size: 22px;
+            }
+          }
+        }
+      }
+    }
+
+    &-filter {
+      flex-wrap: wrap;
+    }
+  }
+}
