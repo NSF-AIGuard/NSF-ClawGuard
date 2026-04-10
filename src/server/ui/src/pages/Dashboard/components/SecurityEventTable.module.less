@@ -1,0 +1,94 @@
+@dark-header: #161b22;
+@text-primary: rgba(230, 237, 243, 0.85);
+@text-secondary: rgba(230, 237, 243, 0.65);
+@text-muted: rgba(230, 237, 243, 0.35);
+@border-color: #30363d;
+@primary-color: #55a722;
+
+.tagBadge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.subCategoryPlaceholder {
+  color: rgba(230, 237, 243, 0.35);
+}
+
+.recommendationText {
+  color: rgba(230, 237, 243, 0.85);
+
+  &.empty {
+    color: rgba(230, 237, 243, 0.35);
+  }
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.tabContainer {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tabButton {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+
+  &:hover {
+    opacity: 0.85;
+  }
+
+  &.active {
+    background: rgb(31, 183, 89);
+  }
+}
+
+.expandedRow {
+  padding: 16px 24px;
+  background-color: @dark-header;
+}
+
+.expandedRowTitle {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.expandedRowContent {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  color: rgba(230, 237, 243, 0.75);
+}
+
+:global {
+  .critical-row {
+    background-color: rgba(255, 77, 79, 0.08) !important;
+  }
+  .high-row {
+    background-color: rgba(255, 122, 69, 0.08) !important;
+  }
+  .ant-table-tbody > tr:hover > td {
+    background-color: rgba(85, 167, 34, 0.06) !important;
+  }
+  .ant-table-thead > tr > th {
+    background-color: rgba(13, 17, 23, 0.2) !important;
+  }
+}

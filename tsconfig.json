@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    /* 项目基础选项 - 针对 Node 22+ */
+    "target": "ES2022",                     // Node 22 完全支持 ES2022
+    "module": "Node16",                      // 使用 Node.js 的 ES Module 解析规则（Node16 或 NodeNext）
+    "lib": ["ES2022", "DOM"],                       // 引入 ES2022 标准库，如需 ES2023 可改为 ["ES2023"]
+    "outDir": "./dist",                       // 编译输出目录
+    "removeComments": true,                   // 移除注释，减小输出体积
+
+    /* 模块解析与导入选项 */
+    "moduleResolution": "Node16",              // 必须与 module 保持一致，使用 Node.js 的 ESM 解析策略
+    "baseUrl": "./",                           // 基础路径，用于非相对模块的解析
+    "paths": {                                  // 路径别名（如需使用请取消注释并调整）
+      // "@/*": ["src/*"]
+    },
+    "resolveJsonModule": true,                  // 允许导入 JSON 文件（ESM 下需要实验性支持，但 TypeScript 5.0+ 支持）
+    "esModuleInterop": true,                    // 保持与 CommonJS 模块的互操作性
+    "allowSyntheticDefaultImports": true,        // 允许默认导入没有默认导出的模块
+
+    /* 类型检查与严格模式 */
+    "strict": true,                             // 启用所有严格类型检查选项
+    "noImplicitAny": true,                       // 禁止隐式 any 类型
+    "strictNullChecks": true,                     // 严格的 null 检查
+    "strictFunctionTypes": true,                   // 函数参数类型严格检查
+    "strictBindCallApply": true,                   // 检查 bind/call/apply 的参数类型
+    "strictPropertyInitialization": true,           // 检查属性是否在构造函数中初始化
+    "noImplicitThis": true,                         // 禁止 this 隐式为 any
+    "alwaysStrict": true,                           // 编译输出使用 "use strict"
+
+    /* 额外检查 */
+    "noUnusedLocals": true,                       // 报告未使用的局部变量
+    "noUnusedParameters": true,                    // 报告未使用的参数
+    "noImplicitReturns": true,                     // 检查函数所有分支都有返回值
+    "noFallthroughCasesInSwitch": true,            // 检查 switch 语句的 fallthrough
+
+    /* 输出与调试 */
+    "declaration": true,                           // 生成类型声明文件（.d.ts）
+    "declarationMap": true,                        // 为声明文件生成 source map
+    "sourceMap": true,                             // 生成 source map，便于调试
+    "inlineSourceMap": false,                      // 不将 source map 内联到文件
+
+    /* 其他 */
+    "skipLibCheck": true,                          // 跳过 node_modules 中库的类型检查，提高编译速度
+    "forceConsistentCasingInFileNames": true,       // 确保文件名大小写一致
+
+    /* 实验性选项（根据需求启用） */
+    "experimentalDecorators": true,                 // 如果使用装饰器
+    "emitDecoratorMetadata": true                    // 装饰器元数据（如 TypeORM 需要）
+  },
+  "include": ["src/**/*", "index.ts"],                                                                   // 包含需要编译的文件
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "vitest.config.ts", "tests/**/*"]  // 排除的文件
+}

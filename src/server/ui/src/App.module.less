@@ -1,0 +1,151 @@
+.app {
+  height: 100%;
+  
+  &-content {
+    padding: 24px;
+    min-height: calc(100vh - 48px);
+  }
+  
+  &-header {
+    background: #26303a;
+    padding: 0 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// 全局样式覆盖 - 暗色主题
+.ant-layout {
+  min-height: 100vh;
+  background: #0d1117;
+}
+
+.ant-layout-header {
+  background: #26303a;
+  height: 48px;
+  line-height: 48px;
+  padding: 0 24px;
+  border-bottom: 1px solid #30363d;
+}
+
+.ant-layout-content {
+  background: #0d1117;
+  padding: 24px;
+}
+
+// 全局卡片暗色覆盖
+.ant-card {
+  background: #1c2333 !important;
+  border-color: #30363d !important;
+  
+  &-head {
+    border-bottom: 1px solid #30363d;
+    background: #1c2333;
+    color: rgba(230, 237, 243, 0.85);
+  }
+  
+  &-body {
+    background: #1c2333;
+  }
+}
+
+// 全局表格暗色覆盖
+.ant-table {
+  background: #1c2333 !important;
+  
+  .ant-table-thead > tr > th {
+    background: #161b22 !important;
+    color: rgba(230, 237, 243, 0.85) !important;
+    border-bottom: 2px solid #30363d !important;
+  }
+  
+  .ant-table-tbody > tr > td {
+    border-bottom: 1px solid #21262d !important;
+    color: rgba(230, 237, 243, 0.75);
+  }
+  
+  .ant-table-tbody > tr:hover > td {
+    background: rgba(85, 167, 34, 0.06) !important;
+  }
+  
+  .ant-table-placeholder {
+    background: #1c2333;
+  }
+}
+
+// 全局统计组件
+.ant-statistic {
+  .ant-statistic-content {
+    font-size: 24px;
+    font-weight: 600;
+  }
+  
+  .ant-statistic-title {
+    color: rgba(230, 237, 243, 0.45);
+    font-size: 14px;
+  }
+}
+
+// 全局标签暗色
+.ant-tag {
+  border-radius: 4px;
+}
+
+// 全局分页器暗色
+.ant-pagination {
+  .ant-pagination-item {
+    background: #1c2333;
+    border-color: #30363d;
+    
+    a {
+      color: rgba(230, 237, 243, 0.65);
+    }
+    
+    &:hover {
+      border-color: #55a722;
+      
+      a {
+        color: #55a722;
+      }
+    }
+  }
+  
+  .ant-pagination-item-active {
+    background: #55a722;
+    border-color: #55a722;
+    
+    a {
+      color: #fff;
+    }
+  }
+}
+
+// 全局 Tabs 暗色
+.ant-tabs {
+  color: rgba(230, 237, 243, 0.65);
+  
+  .ant-tabs-tab {
+    color: rgba(230, 237, 243, 0.65);
+    
+    &:hover {
+      color: #55a722;
+    }
+  }
+  
+  .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #55a722;
+  }
+  
+  .ant-tabs-ink-bar {
+    background: #55a722;
+  }
+}
+
+// 全局 Badge 暗色
+.ant-badge-status-text {
+  color: rgba(230, 237, 243, 0.75);
+}
+
+// 全局 Spin 暗色
+.ant-spin-text {
+  color: rgba(230, 237, 243, 0.65);
+}

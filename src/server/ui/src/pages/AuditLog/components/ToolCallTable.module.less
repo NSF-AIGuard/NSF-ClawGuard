@@ -1,0 +1,184 @@
+@primary-color: #55a722;
+@info-color: #1890ff;
+@success-color: #52c41a;
+@danger-color: #ff4d4f;
+@warning-color: #faad14;
+@text-primary: rgba(230, 237, 243, 0.85);
+@text-secondary: rgba(230, 237, 243, 0.65);
+@text-tertiary: rgba(230, 237, 243, 0.45);
+@dark-header: #161b22;
+@border-color: #30363d;
+
+// Cell styles
+.idCell {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: @text-secondary;
+}
+
+.toolNameCell {
+  font-weight: 500;
+  color: @text-primary;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolIcon {
+  color: @primary-color;
+  font-size: 12px;
+}
+
+.timeCell {
+  font-size: 12px;
+}
+
+.statusTag {
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 5px;
+  margin: 0;
+
+  &.statusSuccess {
+    color: @success-color;
+    background-color: rgba(82, 196, 26, 0.3);
+    border-color: transparent;
+  }
+
+  &.statusFailure {
+    color: @danger-color;
+    background-color: rgba(255, 77, 79, 0.3);
+    border-color: transparent;
+  }
+}
+
+.durationCell {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  font-weight: 500;
+
+  &.durationSlow { color: @danger-color; }
+  &.durationMedium { color: @warning-color; }
+  &.durationFast { color: @success-color; }
+}
+
+.sessionIdCell {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: @primary-color;
+}
+
+.errorCell {
+  font-size: 12px;
+
+  &.hasError { color: @danger-color; }
+  &.noError { color: @text-tertiary; }
+}
+
+// Stats bar
+.statsBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: @dark-header;
+  margin-bottom: 16px;
+  border-bottom: 1px solid @border-color;
+}
+
+.statsLeft {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: @text-secondary;
+}
+
+.statValueSuccess {
+  font-size: 14px;
+  font-weight: 600;
+  color: @success-color;
+}
+
+.statValueDanger {
+  font-size: 14px;
+  font-weight: 600;
+  color: @danger-color;
+}
+
+.statValuePrimary {
+  font-size: 14px;
+  font-weight: 600;
+  color: @primary-color;
+}
+
+.statValueDefault {
+  font-size: 14px;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.progressPercent {
+  font-size: 12px;
+  font-weight: 600;
+  color: @primary-color;
+}
+
+.filterRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.searchInput {
+  width: 240px;
+}
+
+.statusSelect {
+  width: 120px;
+}
+
+.tableWrapper {
+  padding: 0 24px;
+}
+
+// Expanded row
+.expandedRow {
+  padding: 8px 0;
+}
+
+.expandedContent {
+  display: flex;
+  gap: 24px;
+}
+
+.expandedSection {
+  flex: 1;
+}
+
+.expandedTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: @text-primary;
+  margin-bottom: 8px;
+}
+
+.expandedTitleError {
+  font-size: 12px;
+  font-weight: 600;
+  color: @danger-color;
+  margin-bottom: 8px;
+}
+
+.errorMessageText {
+  color: #ff6b6b;
+}

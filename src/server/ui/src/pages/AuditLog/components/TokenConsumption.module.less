@@ -1,0 +1,135 @@
+@primary-color: #55a722;
+@info-color: #1890ff;
+
+// Cell styles
+.sessionId {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: @primary-color;
+  font-weight: 500;
+}
+
+.timeCell {
+  font-size: 12px;
+}
+
+.modelTag {
+  border-color: @primary-color;
+  color: @primary-color;
+  background: rgba(85, 167, 34, 0.06);
+}
+
+.inputTokens {
+  color: @info-color;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.outputTokens {
+  color: @primary-color;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.totalTokens {
+  color: rgba(230, 237, 243, 0.85);
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cacheReadTokens {
+  color: #722ed1;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cacheWriteTokens {
+  color: #eb2f96;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+// Summary bar
+.summaryBar {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 14px 24px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.summaryLabel {
+  font-size: 13px;
+  color: rgba(230, 237, 243, 0.65);
+}
+
+.summaryValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(230, 237, 243, 0.85);
+}
+
+.summaryValueGreen {
+  font-size: 15px;
+  font-weight: 600;
+  color: @primary-color;
+}
+
+.summaryValueBlue {
+  font-size: 15px;
+  font-weight: 600;
+  color: @info-color;
+}
+
+.summaryLabelBlue {
+  font-size: 13px;
+  color: @info-color;
+}
+
+.summaryLabelGreen {
+  font-size: 13px;
+  color: @primary-color;
+}
+
+.summaryPercent {
+  font-size: 12px;
+  color: rgba(230, 237, 243, 0.45);
+}
+
+.legendContainer {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendDotBlue {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: @info-color;
+  display: inline-block;
+}
+
+.legendDotGreen {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: @primary-color;
+  display: inline-block;
+}
+
+.legendText {
+  font-size: 12px;
+  color: rgba(230, 237, 243, 0.65);
+}
+
+.tableWrapper {
+  padding: 0 24px;
+}

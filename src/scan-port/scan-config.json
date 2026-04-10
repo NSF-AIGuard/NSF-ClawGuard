@@ -1,0 +1,14 @@
+{
+  "searchStrings": [
+    ".openclaw"
+  ],
+  "matchMode": "any",
+  "timeout": 5000,
+  "protocols": ["http", "https"],
+  "uris": ["/"],
+  "skipCommonPorts": true,
+  "commonPorts": [80, 443, 22, 25, 53, 3306, 5432, 6379, 27017],
+  "maxPorts": 100,
+  "outputFormat": "console",
+  "showResponseContent": false
+}
