@@ -1,7 +1,4 @@
 // import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
 import requestManager from "./src/request.js";
 import initializeLogger from "./src/logger.js";
 import {
@@ -14,7 +11,7 @@ import {
   startTokenUsageLogReporter,
   startToolCallLogReporter,
   startSecurityEventLogReporter,
-  setDbReady
+  setDbReady,
 } from "./src/api.js";
 import {
   getScanResults,
@@ -40,6 +37,7 @@ import {
   dbQueryGWAuthLogs,
   ensureDb,
 } from "./src/database.js";
+import { installProxy, subscribe } from "./src/monitor-log-file.js";
 import registerCli from "./src/cli/index.js";
 
 import type {
@@ -48,14 +46,19 @@ import type {
   PluginHookLlmOutputEvent,
 } from "./src/types.js";
 
-export default async function register(api: OpenClawPluginApi) {
+async function registerWhenGatewayStart(api: OpenClawPluginApi) {
   const pluginVersion = api.version;
   const hackLogger = initializeLogger(api);
   const ok = requestManager.initialize(hackLogger);
+  hackLogger.info(`初始化插件`);
+
+  // 安装 fs.appendFileSync 代理（发布订阅模式）
+  installProxy();
+
   registerCli(api, hackLogger, uploadDetectFile);
   registerHttpRoute(api);
   await ensureDb();
-  setDbReady()
+  setDbReady();
   // 启动时运行配置文件安全扫描
   const { results } = getScanResults();
   if (results.length > 0) {
@@ -214,6 +217,215 @@ export default async function register(api: OpenClawPluginApi) {
     startToolCallLogReporter(30000);
     startSecurityEventLogReporter(30000);
   }
+
+  // ── Gateway 日志文件监听（认证日志）── 基于 appendFileSync 代理发布订阅 ──
+
+  function generateGWEventId(): string {
+    return `gw_auth_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  function startGatewayAuthLogWatcher(): void {
+    // 已写入的去重集合：dedupKey → true
+    const writtenLineHashes = new Set<string>();
+
+    // 启动时从已有 DB 加载去重记录（避免重启后重复写入）
+    async function loadWrittenLineHashes(): Promise<void> {
+      try {
+        const rows = await dbQueryGWAuthLogs({ limit: 10000 });
+        for (const row of rows) {
+          const key = `${row["conn_id"]}:${row["log_timestamp"]}:${row["event_type"]}`;
+          writtenLineHashes.add(key);
+        }
+        hackLogger.info(`[Gateway Auth] 从 DB 加载 ${rows.length} 条去重记录`);
+      } catch (e) {
+        hackLogger.warn(`[Gateway Auth] 加载去重记录失败: ${e}`);
+      }
+    }
+
+    function extractDisconnectInfo(text: string): {
+      code: string;
+      reason: string;
+    } {
+      const codeMatch = text.match(/code=(\S+)/);
+      const reasonMatch = text.match(/reason=(\S+)/);
+      return {
+        code: codeMatch ? codeMatch[1] : "",
+        reason: reasonMatch ? reasonMatch[1] : "",
+      };
+    }
+
+    function extractConnId(text: string): string {
+      const m = text.match(/conn=([a-f0-9-]+)/i);
+      return m ? m[1] : "";
+    }
+
+    function extractRemote(text: string): string {
+      const m = text.match(/remote=([\d.]+)/);
+      return m ? m[1] : "";
+    }
+
+    function extractClient(text: string): { client: string; version: string } {
+      const m = text.match(/client=([^\s]+)\s+(.+)/);
+      if (m) {
+        const versionMatch = m[2].match(/v?(\d+\.\d+\.\d+)/);
+        return {
+          client: m[1],
+          version: versionMatch ? versionMatch[1] : m[2],
+        };
+      }
+      return { client: "", version: "" };
+    }
+
+    function classifyEvent(text: string): string {
+      if (/webchat disconnected/i.test(text)) return "disconnected";
+      if (/unauthorized|token_mismatch|handshake\s*fail/i.test(text))
+        return "auth_failed";
+      if (/webchat connected|authorized/i.test(text)) return "auth_success";
+      if (/gateway\/ws/i.test(text)) return "ws_other";
+      return "unknown";
+    }
+
+    function isAuthEvent(text: string): boolean {
+      return /webchat\s+(connected|disconnected)|unauthorized|token_mismatch|handshake\s*fail/i.test(
+        text,
+      );
+    }
+
+    function processLine(line: string, fPath: string): void {
+      let logEntry: Record<string, unknown>;
+      try {
+        logEntry = JSON.parse(line);
+      } catch (err){
+        return;
+      }
+
+      // 解析 msg0（本身是 JSON 字符串）
+      const msg0Raw = logEntry["0"];
+      let msg0Obj: Record<string, unknown> = {};
+      if (typeof msg0Raw === "string") {
+        try {
+          msg0Obj = JSON.parse(msg0Raw);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // 判断 subsystem
+      const subsystem =
+        typeof msg0Obj["subsystem"] === "string" ? msg0Obj["subsystem"] : "";
+      if (!/gateway\/ws/i.test(subsystem)) return;
+
+      const msg1 = logEntry["1"];
+      const authData =
+        msg1 && typeof msg1 === "object" && !Array.isArray(msg1)
+          ? (msg1 as Record<string, unknown>)
+          : null;
+      const msgText =
+        typeof msg1 === "string"
+          ? msg1
+          : typeof msg0Raw === "string"
+            ? msg0Raw
+            : "";
+
+      if (!isAuthEvent(msgText)) return;
+
+      // 提取字段
+      const connId = extractConnId(msgText);
+      const remoteIp = authData
+        ? String(authData["remote"] || extractRemote(msgText))
+        : extractRemote(msgText);
+      const { client, version: clientVersion } = extractClient(msgText);
+      const { code: disconnectCode, reason: disconnectReason } =
+        extractDisconnectInfo(msgText);
+      const authMode = authData
+        ? String(authData["authMode"] || "token")
+        : "token";
+      const authReason = authData ? String(authData["authReason"] || "") : "";
+      const userAgent = authData ? String(authData["userAgent"] || "") : "";
+
+      // 提取 meta
+      const meta = (logEntry["_meta"] || {}) as Record<string, unknown>;
+      const logTimestamp =
+        (meta["date"] as string) ||
+        (logEntry["time"] as string) ||
+        new Date().toISOString();
+      const logLevel = (meta["logLevelName"] as string) || "";
+      const runtime = (meta["runtime"] as string) || "";
+      const runtimeVersion = (meta["runtimeVersion"] as string) || "";
+      const hostname = (meta["hostname"] as string) || "";
+
+      const eventType = classifyEvent(msgText);
+
+      // 去重：使用 conn_id + timestamp + event_type 组合键
+      const dedupKey = `${connId}:${logTimestamp}:${eventType}`;
+      if (writtenLineHashes.has(dedupKey)) return;
+      writtenLineHashes.add(dedupKey);
+
+      void dbInsertGWAuthLog(
+        generateGWEventId(),
+        eventType,
+        logTimestamp,
+        connId,
+        remoteIp,
+        client,
+        clientVersion,
+        disconnectCode,
+        disconnectReason,
+        authMode,
+        authReason,
+        userAgent,
+        subsystem,
+        logLevel,
+        runtime,
+        runtimeVersion,
+        hostname,
+        fPath,
+        line,
+      );
+
+      if (eventType === "disconnected") {
+        hackLogger.info(
+          `[Gateway Auth] disconnected - conn=${connId} code=${disconnectCode} reason=${disconnectReason}`,
+        );
+      } else if (eventType === "auth_success") {
+        hackLogger.info(
+          `[Gateway Auth] auth_success - conn=${connId} client=${client} remote=${remoteIp}`,
+        );
+      } else if (eventType === "auth_failed") {
+        hackLogger.warn(
+          `[Gateway Auth] auth_failed - conn=${connId} reason=${authReason || msgText.slice(0, 100)}`,
+        );
+      }
+    }
+
+    void loadWrittenLineHashes();
+
+    subscribe(processLine);
+
+    hackLogger.info(
+      `[Gateway Auth] 已订阅 appendFileSync 代理，实时监听日志写入`,
+    );
+  }
+
+  try {
+    startGatewayAuthLogWatcher();
+    const stats = await dbGetStats();
+    const dbPath = await dbGetDBPath();
+    hackLogger.info(
+      `[Gateway Auth] 日志监听已启动（发布订阅模式），DB: ${dbPath}, 当前记录: security_events=${stats.security_events} token_usage=${stats.token_usage} tool_call=${stats.tool_call} gateway_auth_logs=${stats.gateway_auth_logs}`,
+    );
+  } catch (err) {
+    hackLogger.error(`[Gateway Auth] 日志监听启动失败: ${err}`);
+  }
+
+}
+
+export default async function register(api: OpenClawPluginApi) {
+  const hackLogger = initializeLogger(api);
+  api.on("gateway_start", async () => {
+    registerWhenGatewayStart(api);
+  });
+
 
   // Hook: Check user input for threats
   api.on("message_received", async (event: { content: string }) => {
@@ -413,308 +625,6 @@ export default async function register(api: OpenClawPluginApi) {
       }
     },
   );
-
-  // ── Gateway 日志文件监听（认证日志）──────────────────────
-  // ── 跨平台获取 OpenClaw 日志目录 ────────────────────────────
-  function getOpenClawLogDir(): string {
-    if (process.env.OPENCLAW_LOGS_DIR) {
-      return process.env.OPENCLAW_LOGS_DIR;
-    }
-    if (process.platform === "win32" && process.env.LOCALAPPDATA) {
-      return path.join(process.env.LOCALAPPDATA, "Temp", "openclaw");
-    }
-    return path.join(os.tmpdir(), "openclaw");
-  }
-
-  function generateGWEventId(): string {
-    return `gw_auth_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  }
-
-  function startGatewayAuthLogWatcher(): void {
-    const logDir = getOpenClawLogDir();
-    let today = new Date().toISOString().slice(0, 10);
-    let logPath = path.join(logDir, `openclaw-${today}.log`);
-
-    // 记录每个文件的读取位置（offset）
-    const fileOffsets = new Map<string, number>();
-
-    // 已写入的去重集合：line hash → true
-    const writtenLineHashes = new Set<string>();
-
-    // 启动时从已有 DB 加载已有的去重记录（避免重启后重复写入）
-    async function loadWrittenLineHashes(): Promise<void> {
-      try {
-        // 从 SQLite DB 加载已记录的去重键（conn_id + timestamp + event_type）
-        const rows = await dbQueryGWAuthLogs({ limit: 10000 });
-        for (const row of rows) {
-          const key = `${row["conn_id"]}:${row["log_timestamp"]}:${row["event_type"]}`;
-          writtenLineHashes.add(key);
-        }
-        hackLogger.info(`[Gateway Auth] 从 DB 加载 ${rows.length} 条去重记录`);
-      } catch (e) {
-        hackLogger.warn(`[Gateway Auth] 加载去重记录失败: ${e}`);
-      }
-    }
-
-    function getFileOffset(fPath: string): number {
-      if (!fileOffsets.has(fPath)) {
-        try {
-          fileOffsets.set(fPath, fs.statSync(fPath).size);
-        } catch {
-          fileOffsets.set(fPath, 0);
-        }
-      }
-      return fileOffsets.get(fPath)!;
-    }
-
-    function setFileOffset(fPath: string, offset: number): void {
-      fileOffsets.set(fPath, offset);
-    }
-
-    function switchToNewLogFile(): void {
-      const newDate = new Date().toISOString().slice(0, 10);
-      if (newDate === today) return;
-      const newLogPath = path.join(logDir, `openclaw-${newDate}.log`);
-      hackLogger.info(
-        `[Gateway Auth] 日期变更，切换日志文件: ${logPath} → ${newLogPath}`,
-      );
-      today = newDate;
-      logPath = newLogPath;
-      // 新文件从头读
-      fileOffsets.set(logPath, 0);
-    }
-
-    function readNewLines(
-      fPath: string,
-      startOffset: number,
-      endOffset: number,
-    ): { offset: number; line: string }[] {
-      if (endOffset <= startOffset) return [];
-      try {
-        const fd = fs.openSync(fPath, "r");
-        const buf = Buffer.alloc(endOffset - startOffset);
-        fs.readSync(fd, buf, 0, endOffset - startOffset, startOffset);
-        fs.closeSync(fd);
-        const content = buf.toString("utf-8");
-        const result: { offset: number; line: string }[] = [];
-        let currentOffset = startOffset;
-        const lines = content.split("\n");
-        for (const line of lines) {
-          if (line.trim()) {
-            result.push({ offset: currentOffset, line });
-          }
-          currentOffset += Buffer.byteLength(line + "\n", "utf-8");
-        }
-        return result;
-      } catch {
-        return [];
-      }
-    }
-
-    function extractDisconnectInfo(text: string): {
-      code: string;
-      reason: string;
-    } {
-      const codeMatch = text.match(/code=(\S+)/);
-      const reasonMatch = text.match(/reason=(\S+)/);
-      return {
-        code: codeMatch ? codeMatch[1] : "",
-        reason: reasonMatch ? reasonMatch[1] : "",
-      };
-    }
-
-    function extractConnId(text: string): string {
-      const m = text.match(/conn=([a-f0-9-]+)/i);
-      return m ? m[1] : "";
-    }
-
-    function extractRemote(text: string): string {
-      const m = text.match(/remote=([\d.]+)/);
-      return m ? m[1] : "";
-    }
-
-    function extractClient(text: string): { client: string; version: string } {
-      // 格式: "client=openclaw-control-ui webchat v2026.3.28"
-      const m = text.match(/client=([^\s]+)\s+(.+)/);
-      if (m) {
-        const versionMatch = m[2].match(/v?(\d+\.\d+\.\d+)/);
-        return {
-          client: m[1],
-          version: versionMatch ? versionMatch[1] : m[2],
-        };
-      }
-      return { client: "", version: "" };
-    }
-
-    function classifyEvent(text: string): string {
-      if (/webchat disconnected/i.test(text)) return "disconnected";
-      if (/unauthorized|token_mismatch|handshake\s*fail/i.test(text))
-        return "auth_failed";
-      if (/webchat connected|authorized/i.test(text)) return "auth_success";
-      if (/gateway\/ws/i.test(text)) return "ws_other";
-      return "unknown";
-    }
-
-    function isAuthEvent(text: string): boolean {
-      return /webchat\s+(connected|disconnected)|unauthorized|token_mismatch|handshake\s*fail/i.test(
-        text,
-      );
-    }
-
-    function processLineItem(item: { offset: number; line: string }): void {
-      const { line } = item;
-      const fPath = logPath;
-
-      let logEntry: Record<string, unknown>;
-      try {
-        logEntry = JSON.parse(line);
-      } catch {
-        return;
-      }
-
-      // 解析 msg0（本身是 JSON 字符串）
-      const msg0Raw = logEntry["0"];
-      let msg0Obj: Record<string, unknown> = {};
-      if (typeof msg0Raw === "string") {
-        try {
-          msg0Obj = JSON.parse(msg0Raw);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      // 判断 subsystem
-      const subsystem =
-        typeof msg0Obj["subsystem"] === "string" ? msg0Obj["subsystem"] : "";
-      if (!/gateway\/ws/i.test(subsystem)) return;
-
-      const msg1 = logEntry["1"];
-      const authData =
-        msg1 && typeof msg1 === "object" && !Array.isArray(msg1)
-          ? (msg1 as Record<string, unknown>)
-          : null;
-      const msgText =
-        typeof msg1 === "string"
-          ? msg1
-          : typeof msg0Raw === "string"
-            ? msg0Raw
-            : "";
-
-      if (!isAuthEvent(msgText)) return;
-
-      // 提取字段
-      const connId = extractConnId(msgText);
-      const remoteIp = authData
-        ? String(authData["remote"] || extractRemote(msgText))
-        : extractRemote(msgText);
-      const { client, version: clientVersion } = extractClient(msgText);
-      const { code: disconnectCode, reason: disconnectReason } =
-        extractDisconnectInfo(msgText);
-      const authMode = authData
-        ? String(authData["authMode"] || "token")
-        : "token";
-      const authReason = authData ? String(authData["authReason"] || "") : "";
-      const userAgent = authData ? String(authData["userAgent"] || "") : "";
-
-      // 提取 meta
-      const meta = (logEntry["_meta"] || {}) as Record<string, unknown>;
-      const logTimestamp =
-        (meta["date"] as string) ||
-        (logEntry["time"] as string) ||
-        new Date().toISOString();
-      const logLevel = (meta["logLevelName"] as string) || "";
-      const runtime = (meta["runtime"] as string) || "";
-      const runtimeVersion = (meta["runtimeVersion"] as string) || "";
-      const hostname = (meta["hostname"] as string) || "";
-
-      const eventType = classifyEvent(msgText);
-
-      // 去重：使用 conn_id + timestamp + event_type 组合键
-      const dedupKey = `${connId}:${logTimestamp}:${eventType}`;
-      if (writtenLineHashes.has(dedupKey)) return;
-      writtenLineHashes.add(dedupKey);
-
-      void dbInsertGWAuthLog(
-        generateGWEventId(),
-        eventType,
-        logTimestamp,
-        connId,
-        remoteIp,
-        client,
-        clientVersion,
-        disconnectCode,
-        disconnectReason,
-        authMode,
-        authReason,
-        userAgent,
-        subsystem,
-        logLevel,
-        runtime,
-        runtimeVersion,
-        hostname,
-        fPath,
-        line,
-      );
-
-      if (eventType === "disconnected") {
-        hackLogger.info(
-          `[Gateway Auth] disconnected - conn=${connId} code=${disconnectCode} reason=${disconnectReason}`,
-        );
-      } else if (eventType === "auth_success") {
-        hackLogger.info(
-          `[Gateway Auth] auth_success - conn=${connId} client=${client} remote=${remoteIp}`,
-        );
-      } else if (eventType === "auth_failed") {
-        hackLogger.warn(
-          `[Gateway Auth] auth_failed - conn=${connId} reason=${authReason || msgText.slice(0, 100)}`,
-        );
-      }
-    }
-
-    void loadWrittenLineHashes();
-
-    setInterval(() => {
-      try {
-        switchToNewLogFile();
-
-        const currentSize = getFileOffset(logPath);
-        let actualSize: number;
-        try {
-          actualSize = fs.statSync(logPath).size;
-        } catch {
-          return;
-        }
-
-        if (actualSize > currentSize) {
-          const items = readNewLines(logPath, currentSize, actualSize);
-          for (const item of items) {
-            try {
-              processLineItem(item);
-            } catch (e) {
-              // 忽略单行处理错误
-            }
-          }
-          setFileOffset(logPath, actualSize);
-        } else if (actualSize < currentSize) {
-          // 文件被轮转，从头开始
-          setFileOffset(logPath, 0);
-        }
-      } catch (e) {
-        // 忽略轮询错误
-      }
-    }, 1000);
-  }
-
-  try {
-    startGatewayAuthLogWatcher();
-    const stats = await dbGetStats();
-    const dbPath = await dbGetDBPath();
-    hackLogger.info(
-      `[Gateway Auth] 日志监听已启动，DB: ${dbPath}, 当前记录: security_events=${stats.security_events} token_usage=${stats.token_usage} tool_call=${stats.tool_call} gateway_auth_logs=${stats.gateway_auth_logs}`,
-    );
-  } catch (err) {
-    hackLogger.error(`[Gateway Auth] 日志监听启动失败: ${err}`);
-  }
 
   // ── Token 使用量采集（llm_output 事件）───────────────────
   api.on(

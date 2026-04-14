@@ -66,7 +66,9 @@ async function initSql(): Promise<void> {
 
   const SQL = isNode
     ? await initSqlJs({ wasmBinary: base64ToArrayBuffer(wasmBase64) })
-    : await initSqlJs({ locateFile: (f: string) => `https://sql.js.org/dist/${f}` });
+    : await initSqlJs({
+        locateFile: (f: string) => `https://sql.js.org/dist/${f}`,
+      });
 
   // 确保数据目录存在
   const dbDir = path.join(currentPluginRoot(), "data");
@@ -245,18 +247,17 @@ function queryWithFilter(
   startTime?: string,
   endTime?: string,
   limit: number = 100,
-  idAfter?: number
+  idAfter?: number,
 ): Array<Record<string, unknown>> {
   const db = getDb();
 
   // 动态构建 WHERE 子句
   let sql = `SELECT * FROM ${table} WHERE 1=1`;
   const params: unknown[] = [];
-   if (idAfter  !== undefined) {
+  if (idAfter !== undefined) {
     sql += " AND id > ?";
     params.push(idAfter);
   }
-
 
   // 追加等值条件（跳过空值）
   for (const [value, column] of conditions) {
@@ -276,8 +277,8 @@ function queryWithFilter(
     params.push(endTime);
   }
 
-  // 限制返回条数
-  sql += " ORDER BY id ASC  LIMIT ?";
+  // 按时间倒序排列，限制返回条数
+  sql += ` ORDER BY ${timeColumn} DESC LIMIT ?`;
   params.push(limit);
 
   // 执行查询并收集结果
@@ -378,8 +379,14 @@ export async function dbInsertSecurityEvent(
   eventInfo: string,
 ): Promise<void> {
   await executeInsert(INSERT_SECURITY_EVENT, [
-    eventId, category, subCategory, subCategoryDescription,
-    threatLevel, eventTime, recommendation, eventInfo,
+    eventId,
+    category,
+    subCategory,
+    subCategoryDescription,
+    threatLevel,
+    eventTime,
+    recommendation,
+    eventInfo,
   ]);
 }
 
@@ -404,7 +411,7 @@ export async function dbQuerySecurityEvents(filter: {
     filter.startTime,
     filter.endTime,
     filter.limit,
-    filter.idAfter
+    filter.idAfter,
   );
 }
 
@@ -433,9 +440,17 @@ export async function dbInsertTokenUsage(
   extraInfo: string,
 ): Promise<void> {
   await executeInsert(INSERT_TOKEN_USAGE, [
-    eventId, sessionKey, agentId, model,
-    inputTokens, outputTokens, totalTokens,
-    cacheReadTokens, cacheWriteTokens, eventTime, extraInfo,
+    eventId,
+    sessionKey,
+    agentId,
+    model,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    eventTime,
+    extraInfo,
   ]);
 }
 
@@ -445,7 +460,7 @@ export async function dbQueryTokenUsage(filter: {
   startTime?: string;
   endTime?: string;
   limit?: number;
-  idAfter?: number 
+  idAfter?: number;
 }): Promise<Array<Record<string, unknown>>> {
   return queryWithFilter(
     "token_usage",
@@ -454,7 +469,7 @@ export async function dbQueryTokenUsage(filter: {
     filter.startTime,
     filter.endTime,
     filter.limit,
-    filter.idAfter
+    filter.idAfter,
   );
 }
 
@@ -484,8 +499,18 @@ export async function dbInsertToolCall(
   eventTime: string,
 ): Promise<void> {
   await executeInsert(INSERT_TOOL_CALL, [
-    eventId, sessionKey, agentId, runId, toolCallId, toolName,
-    params, result, isSuccess ? 1 : 0, errorMessage, durationMs, eventTime,
+    eventId,
+    sessionKey,
+    agentId,
+    runId,
+    toolCallId,
+    toolName,
+    params,
+    result,
+    isSuccess ? 1 : 0,
+    errorMessage,
+    durationMs,
+    eventTime,
   ]);
 }
 
@@ -496,7 +521,7 @@ export async function dbQueryToolCall(filter: {
   startTime?: string;
   endTime?: string;
   limit?: number;
-  idAfter?:number
+  idAfter?: number;
 }): Promise<Array<Record<string, unknown>>> {
   return queryWithFilter(
     "tool_call",
@@ -508,7 +533,7 @@ export async function dbQueryToolCall(filter: {
     filter.startTime,
     filter.endTime,
     filter.limit,
-    filter.idAfter
+    filter.idAfter,
   );
 }
 
@@ -547,9 +572,25 @@ export async function dbInsertGWAuthLog(
   rawLine: string,
 ): Promise<void> {
   await executeInsert(INSERT_GW_AUTH_LOG, [
-    eventId, eventType, logTimestamp, connId, remoteIp, client, clientVersion,
-    disconnectCode, disconnectReason, authMode, authReason, userAgent,
-    subsystem, logLevel, runtime, runtimeVersion, hostname, logFile, rawLine,
+    eventId,
+    eventType,
+    logTimestamp,
+    connId,
+    remoteIp,
+    client,
+    clientVersion,
+    disconnectCode,
+    disconnectReason,
+    authMode,
+    authReason,
+    userAgent,
+    subsystem,
+    logLevel,
+    runtime,
+    runtimeVersion,
+    hostname,
+    logFile,
+    rawLine,
   ]);
 }
 
@@ -560,7 +601,7 @@ export async function dbQueryGWAuthLogs(filter: {
   startTime?: string;
   endTime?: string;
   limit?: number;
-  idAfter?: number 
+  idAfter?: number;
 }): Promise<Array<Record<string, unknown>>> {
   return queryWithFilter(
     "gateway_auth_logs",
@@ -572,7 +613,7 @@ export async function dbQueryGWAuthLogs(filter: {
     filter.startTime,
     filter.endTime,
     filter.limit,
-    filter.idAfter
+    filter.idAfter,
   );
 }
 

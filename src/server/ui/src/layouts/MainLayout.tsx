@@ -7,7 +7,7 @@ import {
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.svg";
 import styles from "./MainLayout.module.less";
 
 const { Header, Content } = Layout;
@@ -66,7 +66,7 @@ const MainLayout = () => {
             alt="Logo"
             className={styles.mainLayoutHeaderLogoImage}
           />
-          <span className={styles.mainLayoutHeaderTitle}>绿盟Openclaw端侧安全防护平台</span>
+          <span className={styles.mainLayoutHeaderTitle}>绿盟清风卫 Openclaw 端侧安全防护</span>
           <Menu
             theme="light"
             mode="horizontal"

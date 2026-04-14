@@ -127,7 +127,7 @@ class RequestManager {
 
       return this.instance;
     } catch (error) {
-      hackLogger.error(`Error reading config.json: ${error}`);
+      hackLogger.warn(`Error reading config.json: ${error}`);
       return null;
     }
   }

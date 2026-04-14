@@ -23,8 +23,7 @@ import {
   dbQueryTokenUsage,
   dbQueryToolCall,
   dbGetStats,
-  dbGetDBPath,
-  ensureDb,
+  dbGetDBPath
 } from './database.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -114,6 +113,13 @@ const SUB_CATEGORY_RECOMMENDATIONS: Record<string, string> = {
   'auth-failed-wrong-credentials': '认证凭据错误，请确认用户名和密码是否正确',
   'auth-failed-rate-limited': '认证请求被限流，可能是暴力破解尝试，请检查访问来源',
   'auth-failed-unknown': '未知认证失败原因，请检查 Gateway 日志',
+  // 规则 9-19: 扩展检测规则处理建议
+  'infrastructure-abuse': '请限制网络请求目标、权限范围和容器特权，移除不必要的隧道服务和数据外传端点',
+  'data-exfiltration': '请审查数据外传目标、凭证访问和日志输出的必要性，移除对 ngrok/webhook 等服务的引用',
+  'lateral-movement': '请审查网络扫描、隧道服务和凭证访问的必要性，限制 Docker 和 SSH 访问权限',
+  'autonomy-abuse': '请审查远程指令获取、自修改代码和特权操作的必要性，移除免密 sudo 和动态代码执行',
+  'logic-vulnerability': '请修复通配符导入、裸异常捕获和不安全配置，使用安全的导入和异常处理方式',
+  'financial-attack': '请审查钱包访问、挖矿活动和资金转移逻辑，移除对可疑代币和交易信号服务的引用',
 };
 
 const SUB_CATEGORY_DESCRIPTIONS: Record<string, string> = {
@@ -155,6 +161,13 @@ const SUB_CATEGORY_DESCRIPTIONS: Record<string, string> = {
   'auth-failed-wrong-credentials': '认证凭据错误',
   'auth-failed-rate-limited': '认证请求被限流',
   'auth-failed-unknown': '未知认证失败',
+  // 规则 9-19: 扩展检测规则子类别描述
+  'infrastructure-abuse': '基础设施滥用',
+  'data-exfiltration': '数据泄露',
+  'lateral-movement': '横向移动',
+  'autonomy-abuse': '自主性滥用',
+  'logic-vulnerability': '逻辑漏洞',
+  'financial-attack': '金融攻击',
 };
 
 // config_security rule → sub_category
@@ -197,6 +210,18 @@ const SKILL_RULE_TO_SUB_CATEGORY: Record<string, string> = {
   'skill-metadata-missing': 'metadata-quality', 'skill-metadata-incomplete': 'metadata-quality',
   'skill-metadata-invalid': 'metadata-quality', 'skill-dangerous-install-hook': 'install-hook',
   'skill-no-engines-constraint': 'permission-constraint', 'skill-no-keywords': 'permission-constraint',
+  // 规则 9-19: 扩展检测规则映射
+  'skill-obfuscation': 'encoding-obfuscation',
+  'skill-command-exec': 'remote-code-execution',
+  'skill-infrastructure-abuse': 'infrastructure-abuse',
+  'skill-persistence': 'privilege-escalation',
+  'skill-prompt-injection-extended': 'prompt-injection',
+  'skill-data-exfiltration': 'data-exfiltration',
+  'skill-lateral-movement': 'lateral-movement',
+  'skill-hardcoded-key': 'token-security',
+  'skill-autonomy-abuse': 'autonomy-abuse',
+  'skill-logic-vuln': 'logic-vulnerability',
+  'skill-financial-attack': 'financial-attack',
 };
 
 // ─────────────────────────────────────────────────────────────
