@@ -13,6 +13,9 @@ export default defineConfig({
   bundle: true,
   external: [],
   noExternal: [/^(?!bcrypt$).*/],
+  define: {
+    '__BUNDLED__': 'true',   // 注入全局变量，标识打包后的生产环境
+  },
   loader: {
     '.wasm': 'base64'   // 将 .wasm 文件转为 base64 字符串
   },

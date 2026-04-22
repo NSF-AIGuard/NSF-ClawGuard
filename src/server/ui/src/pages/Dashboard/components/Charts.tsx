@@ -1,38 +1,29 @@
 import { useState, useEffect } from "react";
 import { Card, Row, Col } from "antd";
 import { Pie, Column, Line } from "@ant-design/charts";
-import type { Statistics } from "@/types/dashboard";
-import type { SecurityEvent } from "@/types/dashboard";
+import type { Statistics, RiskDistribution } from "@/types/dashboard";
 import { getSecurityEventStats } from "@/api/threat";
 import styles from "./Charts.module.less";
 
 interface ChartsProps {
   statistics: Statistics;
-  securityData: SecurityEvent[];
+  riskDistribution: RiskDistribution;
 }
 
-const Charts: React.FC<ChartsProps> = ({ statistics, securityData }) => {
+const Charts: React.FC<ChartsProps> = ({ statistics, riskDistribution }) => {
   // 类别名称映射
   const categoryNames: Record<string, string> = {
     config_security: "配置安全",
     skill_security: "Skill安全",
     command_violation: "危险命令",
-    component_change: "组件变更",
     content_check: "上下文检查",
   };
 
-  // 计算各类别的事件数量
-  const categoryStats = securityData.reduce(
-    (acc, item) => {
-      const category = item.category || "unknown";
-      acc[category] = (acc[category] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+  // 使用从接口获取的风险分布数据
+  const categoryStats = riskDistribution;
 
   // 饼图数据 - 类别分布
-  const pieData = Object.keys(categoryStats).map((key) => ({
+  const pieData = (Object.keys(categoryStats) as Array<keyof typeof categoryStats>).map((key) => ({
     type: categoryNames[key] || key,
     value: categoryStats[key],
   }));

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Table, Tag, Input, Tooltip, Badge, Button } from "antd";
 import {
   SearchOutlined,
@@ -9,13 +9,10 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { GatewayAuthLogRecord, GatewayAuthEventType } from "@/types/auditLog";
+import { getGatewayAuthLogList } from "@/api/auditLog";
 import { formatTime } from "../constants";
 import parentStyles from "../index.module.less";
 import styles from "./GatewayAuthLogTable.module.less";
-
-interface GatewayAuthLogTableProps {
-  data: GatewayAuthLogRecord[];
-}
 
 /** 事件类型映射 */
 const eventTypeMap: Record<
@@ -87,37 +84,43 @@ function highlightJson(line: string): React.ReactNode {
   return parts.length > 0 ? parts : line;
 }
 
-const GatewayAuthLogTable: React.FC<GatewayAuthLogTableProps> = ({ data }) => {
+const GatewayAuthLogTable: React.FC = () => {
+  const [data, setData] = useState<GatewayAuthLogRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [eventTypeFilter, setEventTypeFilter] = useState<string>("all");
-  const [logLevelFilter, setLogLevelFilter] = useState<string>("all");
+  const [filteredEventType, setFilteredEventType] = useState<string | null>(null);
 
-  // 统计数据
-  const stats = useMemo(() => {
-    const success = data.filter((d) => d.eventType === "auth_success").length;
-    const failed = data.filter((d) => d.eventType === "auth_failed").length;
-    const disconnected = data.filter((d) => d.eventType === "disconnected").length;
-    return { success, failed, disconnected, total: data.length };
-  }, [data]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, unknown> = { page, pageSize };
+      if (searchText) params.eventId = searchText;
+      if (filteredEventType) params.eventType = filteredEventType;
 
-  const filteredData = data.filter((item) => {
-    // 事件类型筛选
-    if (eventTypeFilter !== "all" && item.eventType !== eventTypeFilter) return false;
-    // 日志级别筛选
-    if (logLevelFilter !== "all" && item.logLevel !== logLevelFilter) return false;
-    // 关键字搜索
-    if (searchText) {
-      const text = searchText.toLowerCase();
-      return (
-        item.eventId.toLowerCase().includes(text) ||
-        item.connId.toLowerCase().includes(text) ||
-        item.remoteIp.toLowerCase().includes(text) ||
-        item.client.toLowerCase().includes(text) ||
-        item.eventType.toLowerCase().includes(text)
-      );
+      const res = await getGatewayAuthLogList(params as any);
+      setData(res.items || []);
+      setTotal(res.total || 0);
+    } catch (error) {
+      console.error("加载网关认证日志失败:", error);
+    } finally {
+      setLoading(false);
     }
-    return true;
-  });
+  }, [page, pageSize, searchText, filteredEventType]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 统计数据（基于当前页）
+  const stats = {
+    success: data.filter((d) => d.eventType === "auth_success").length,
+    failed: data.filter((d) => d.eventType === "auth_failed").length,
+    disconnected: data.filter((d) => d.eventType === "disconnected").length,
+    total: data.length,
+  };
 
 
   const columns: ColumnsType<GatewayAuthLogRecord> = [
@@ -143,6 +146,7 @@ const GatewayAuthLogTable: React.FC<GatewayAuthLogTableProps> = ({ data }) => {
         { text: "认证失败", value: "auth_failed" },
         { text: "已断开", value: "disconnected" },
       ],
+      filterMultiple: false,
       onFilter: (value, record) => record.eventType === value,
       render: (type: GatewayAuthEventType) => {
         const config = eventTypeMap[type] || {
@@ -322,22 +326,22 @@ const GatewayAuthLogTable: React.FC<GatewayAuthLogTableProps> = ({ data }) => {
         {/* 右侧：筛选栏 */}
         <div className={styles.filterRight}>
           <Input
-            placeholder="搜索事件ID、IP、客户端"
+            placeholder="搜索事件ID"
             suffix={<SearchOutlined />}
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => {
+              setSearchText(e.target.value);
+              setPage(1);
+            }}
             className={styles.searchInput}
             allowClear
             size="middle"
           />
-          <Tooltip title="重置筛选">
+          <Tooltip title="刷新">
             <Button
-              icon={<ReloadOutlined />}
-              onClick={() => {
-                setSearchText("");
-                setEventTypeFilter("all");
-                setLogLevelFilter("all");
-              }}
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={fetchData}
+              loading={loading}
             />
           </Tooltip>
         </div>
@@ -347,12 +351,25 @@ const GatewayAuthLogTable: React.FC<GatewayAuthLogTableProps> = ({ data }) => {
       <div className={styles.tableWrapper}>
         <Table
           columns={columns}
-          dataSource={filteredData}
+          dataSource={data}
+          loading={loading}
           pagination={{
-            pageSize: 10,
+            current: page,
+            pageSize,
+            total,
             showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条记录`,
+            showTotal: (t) => `共 ${t} 条记录`,
             showQuickJumper: true,
+          }}
+          onChange={(pagination, filters) => {
+            setPage(pagination.current || 1);
+            setPageSize(pagination.pageSize || 10);
+            const typeVal = filters.eventType as string[] | undefined;
+            if (typeVal && typeVal.length === 1) {
+              setFilteredEventType(typeVal[0]);
+            } else {
+              setFilteredEventType(null);
+            }
           }}
           size="middle"
           scroll={{ x: 1300 }}

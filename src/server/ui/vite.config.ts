@@ -69,7 +69,7 @@ export default defineConfig({
         proxy: {
             // API 代理配置
             '/lm-securty': {
-                target: 'http://localhost:19001',
+                target: 'http://localhost:18789',
                 changeOrigin: true,
             },
         },

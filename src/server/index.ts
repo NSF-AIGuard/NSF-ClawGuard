@@ -1,5 +1,5 @@
 import staticHandler from "./static.js";
-import { inspectHandler, securityEventStatsHandler } from "./inspect.js";
+import { inspectHandler, securityEventStatsHandler, eventStatsHandler, riskDistributionHandler } from "./inspect.js";
 import {
   tokenUsageHandler,
   overview,
@@ -44,6 +44,14 @@ export default function registerHttpRoute(api: OpenClawPluginApi) {
     match: "exact",
   });
   app.get("/lm-securty/securityEventStats", securityEventStatsHandler, {
+    auth: "plugin",
+    match: "exact",
+  });
+  app.get("/lm-securty/eventStats", eventStatsHandler, {
+    auth: "plugin",
+    match: "exact",
+  });
+  app.get("/lm-securty/riskDistribution", riskDistributionHandler, {
     auth: "plugin",
     match: "exact",
   });

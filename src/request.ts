@@ -100,10 +100,10 @@ class RequestManager {
           return config;
         }
         if (this.appId) {
-          if (config.method === "post") {
+          if (config.method === "post" && typeof config.data === 'object') {
             config.data.appId = this.appId;
           }
-          if (config.method === "get") {
+          if (config.method === "get" && typeof config.params === 'object') {
             config.params.appId = this.appId;
           }
         }

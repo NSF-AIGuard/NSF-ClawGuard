@@ -266,7 +266,7 @@ export interface JsonResponse extends ServerResponse {
  * }
  * ```
  */
-export const jsonResponseMiddleware: Middleware = (req, res, next) => {
+export const jsonResponseMiddleware: Middleware = (_, res, next) => {
   // 挂载 res.json() — 发送成功的 JSON 响应
   // 注意：响应头在此方法内部设置，不会影响其他未调用 json() 的路由（如静态资源）
   (res as JsonResponse).json = (data: unknown) => {

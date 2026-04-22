@@ -2,36 +2,101 @@ import {
   dbQueryTokenUsage,
   dbQueryToolCall,
   dbQueryGWAuthLogs,
+  dbCountTokenUsage,
+  dbCountToolCall,
+  dbCountGWAuthLogs,
 } from "../database.js";
 import type { IncomingMessage, ServerResponse } from "http";
+
+// ═══════════════════════════════════════════════════════════════
+// 工具函数
+// ═══════════════════════════════════════════════════════════════
 
 function parseISODate(isoStr: string): Date {
   return new Date(isoStr);
 }
 
+/**
+ * 从请求的 URL 中解析查询参数
+ * 安全地获取 req.url，用 URLSearchParams 解析 query string
+ */
+function getQueryParams(req: IncomingMessage): URLSearchParams {
+  const urlStr = req.url || "";
+  const qIdx = urlStr.indexOf("?");
+  const search = qIdx >= 0 ? urlStr.slice(qIdx) : "";
+  return new URLSearchParams(search);
+}
+
+/**
+ * 解析分页参数
+ * @returns { pageSize, page, offset }
+ */
+function parsePagination(params: URLSearchParams): {
+  pageSize: number;
+  page: number;
+  offset: number;
+} {
+  const pageSize = Math.max(1, Math.min(500, Number(params.get("pageSize")) || 10));
+  const page = Math.max(1, Number(params.get("page")) || 1);
+  const offset = (page - 1) * pageSize;
+  return { pageSize, page, offset };
+}
+
+/**
+ * 构造分页响应数据
+ */
+function paginateResult<T>(
+  list: T[],
+  total: number,
+  page: number,
+  pageSize: number,
+) {
+  const totalPages = Math.ceil(total / pageSize);
+  return {
+    items: list,
+    total,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
 // ── Token Usage ────────────────────────────────────────────────
 
 export async function tokenUsageHandler(
-  _: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
 ) {
   try {
-    const rows = await dbQueryTokenUsage({ limit: 500 });
-    res.json(
-      rows.map((row) => ({
-        key: String(row["event_id"] || ""),
-        sessionId: String(row["session_key"] || ""),
-        startTime: String(row["event_time"] || ""),
-        inputTokens: Number(row["input_tokens"] || 0),
-        outputTokens: Number(row["output_tokens"] || 0),
-        totalTokens: Number(row["total_tokens"] || 0),
-        cacheReadTokens: Number(row["cache_read_tokens"] || 0),
-        cacheWriteTokens: Number(row["cache_write_tokens"] || 0),
-        model: String(row["model"] || ""),
-        extraInfo: String(row["extra_info"] || ""),
-        agentId: String(row["agent_id"] || ""),
-      })),
-    );
+    const qp = getQueryParams(req);
+    const { pageSize, page, offset } = parsePagination(qp);
+
+    const filter = {
+      sessionKey: qp.get("sessionKey") || undefined,
+      startTime: qp.get("startTime") || undefined,
+      endTime: qp.get("endTime") || undefined,
+    };
+
+    const [rows, total] = await Promise.all([
+      dbQueryTokenUsage({ ...filter, limit: pageSize, offset }),
+      dbCountTokenUsage(filter),
+    ]);
+
+    const items = rows.map((row) => ({
+      key: String(row["event_id"] || ""),
+      sessionId: String(row["session_key"] || ""),
+      startTime: String(row["event_time"] || ""),
+      inputTokens: Number(row["input_tokens"] || 0),
+      outputTokens: Number(row["output_tokens"] || 0),
+      totalTokens: Number(row["total_tokens"] || 0),
+      cacheReadTokens: Number(row["cache_read_tokens"] || 0),
+      cacheWriteTokens: Number(row["cache_write_tokens"] || 0),
+      model: String(row["model"] || ""),
+      extraInfo: String(row["extra_info"] || ""),
+      agentId: String(row["agent_id"] || ""),
+    }));
+
+    res.json(paginateResult(items, total, page, pageSize));
   } catch (error) {
     res.error("读取 token_usage", error);
   }
@@ -166,34 +231,54 @@ export async function overview(_: IncomingMessage, res: ServerResponse) {
 // ── Gateway Auth Logs ──────────────────────────────────────────
 
 export async function gatewayAuthLogHandler(
-  _: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
 ) {
   try {
-    const rows = await dbQueryGWAuthLogs({ limit: 500 });
-    res.json(
-      rows.map((row) => ({
-        key: String(row["event_id"] || ""),
-        eventId: String(row["event_id"] || ""),
-        eventType: String(row["event_type"] || ""),
-        logTimestamp: String(row["log_timestamp"] || ""),
-        connId: String(row["conn_id"] || ""),
-        remoteIp: String(row["remote_ip"] || ""),
-        client: String(row["client"] || ""),
-        clientVersion: String(row["client_version"] || ""),
-        disconnectCode: String(row["disconnect_code"] || ""),
-        disconnectReason: String(row["disconnect_reason"] || ""),
-        authMode: String(row["auth_mode"] || ""),
-        authReason: String(row["auth_reason"] || ""),
-        userAgent: String(row["user_agent"] || ""),
-        subsystem: String(row["subsystem"] || ""),
-        logLevel: String(row["log_level"] || ""),
-        runtime: String(row["runtime"] || ""),
-        runtimeVersion: String(row["runtime_version"] || ""),
-        hostname: String(row["hostname"] || ""),
-        rawLine: String(row["raw_line"] || ""),
-      })),
-    );
+    const qp = getQueryParams(req);
+    const { pageSize, page, offset } = parsePagination(qp);
+
+    const timeSortParam = qp.get("timeSort") || undefined;
+    const sortOrder: "ASC" | "DESC" | undefined =
+      timeSortParam?.toUpperCase() === "ASC" ? "ASC" : undefined;
+
+    const filter = {
+      eventType: qp.get("eventType") || undefined,
+      eventId: qp.get("eventId") || undefined,
+      connId: qp.get("connId") || undefined,
+      startTime: qp.get("startTime") || undefined,
+      endTime: qp.get("endTime") || undefined,
+      sortOrder,
+    };
+
+    const [rows, total] = await Promise.all([
+      dbQueryGWAuthLogs({ ...filter, limit: pageSize, offset }),
+      dbCountGWAuthLogs(filter),
+    ]);
+
+    const items = rows.map((row) => ({
+      key: String(row["event_id"] || ""),
+      eventId: String(row["event_id"] || ""),
+      eventType: String(row["event_type"] || ""),
+      logTimestamp: String(row["log_timestamp"] || ""),
+      connId: String(row["conn_id"] || ""),
+      remoteIp: String(row["remote_ip"] || ""),
+      client: String(row["client"] || ""),
+      clientVersion: String(row["client_version"] || ""),
+      disconnectCode: String(row["disconnect_code"] || ""),
+      disconnectReason: String(row["disconnect_reason"] || ""),
+      authMode: String(row["auth_mode"] || ""),
+      authReason: String(row["auth_reason"] || ""),
+      userAgent: String(row["user_agent"] || ""),
+      subsystem: String(row["subsystem"] || ""),
+      logLevel: String(row["log_level"] || ""),
+      runtime: String(row["runtime"] || ""),
+      runtimeVersion: String(row["runtime_version"] || ""),
+      hostname: String(row["hostname"] || ""),
+      rawLine: String(row["raw_line"] || ""),
+    }));
+
+    res.json(paginateResult(items, total, page, pageSize));
   } catch (error) {
     res.error("读取 gateway_auth_logs", error);
   }
@@ -201,26 +286,55 @@ export async function gatewayAuthLogHandler(
 
 // ── Tool Call ─────────────────────────────────────────────────
 
-export async function toolCallHandler(_: IncomingMessage, res: ServerResponse) {
+export async function toolCallHandler(req: IncomingMessage, res: ServerResponse) {
   try {
-    const rows = await dbQueryToolCall({ limit: 500 });
-    res.json(
-      rows.map((row) => ({
-        runId: String(row["run_id"] || ""),
-        toolCallId: String(row["tool_call_id"] || ""),
-        key: String(row["event_id"] || ""),
-        id: String(row["event_id"] || ""),
-        toolName: String(row["tool_name"] || ""),
-        callTime: Number(row["duration_ms"] || 0),
-        inputParams: String(row["params"] || ""),
-        outputResult: String(row["result"] || ""),
-        sessionId: String(row["session_key"] || ""),
-        startTime: String(row["event_time"] || ""),
-        errorMessage: String(row["error_message"] || ""),
-        agentId: String(row["agent_id"] || ""),
-        isSuccess: Boolean(Number(row["is_success"]) === 1),
-      })),
-    );
+    const qp = getQueryParams(req);
+    const { pageSize, page, offset } = parsePagination(qp);
+
+    // 解析 isSuccess 参数：支持 "true"/"1" → 1, "false"/"0" → 0
+    let isSuccess: number | undefined;
+    const isSuccessStr = qp.get("isSuccess");
+    if (isSuccessStr !== null && isSuccessStr !== "") {
+      if (isSuccessStr === "true" || isSuccessStr === "1") {
+        isSuccess = 1;
+      } else if (isSuccessStr === "false" || isSuccessStr === "0") {
+        isSuccess = 0;
+      }
+    }
+
+    const actionParam = qp.get("action") || undefined;
+
+    const filter = {
+      isSuccess,
+      action: actionParam,
+      search: qp.get("search") || undefined,
+      startTime: qp.get("startTime") || undefined,
+      endTime: qp.get("endTime") || undefined,
+    };
+
+    const [rows, total] = await Promise.all([
+      dbQueryToolCall({ ...filter, limit: pageSize, offset }),
+      dbCountToolCall(filter),
+    ]);
+
+    const items = rows.map((row) => ({
+      runId: String(row["run_id"] || ""),
+      toolCallId: String(row["tool_call_id"] || ""),
+      key: String(row["event_id"] || ""),
+      id: String(row["event_id"] || ""),
+      toolName: String(row["tool_name"] || ""),
+      callTime: Number(row["duration_ms"] || 0),
+      inputParams: String(row["params"] || ""),
+      outputResult: String(row["result"] || ""),
+      sessionId: String(row["session_key"] || ""),
+      startTime: String(row["event_time"] || ""),
+      errorMessage: String(row["error_message"] || ""),
+      agentId: String(row["agent_id"] || ""),
+      isSuccess: Boolean(Number(row["is_success"]) === 1),
+      action: String(row["action"] || ""),
+    }));
+
+    res.json(paginateResult(items, total, page, pageSize));
   } catch (error) {
     res.error("读取 tool_call", error);
   }

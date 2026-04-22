@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Table, Tag, Input, Tooltip, Badge, Progress, Button } from "antd";
 import {
   SearchOutlined,
@@ -7,44 +7,53 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { ToolCallRecord } from "@/types/auditLog";
+import { getToolCallList } from "@/api/auditLog";
 import { formatTime } from "../constants";
 import parentStyles from "../index.module.less";
 import styles from "./ToolCallTable.module.less";
 
-interface ToolCallTableProps {
-  data: ToolCallRecord[];
-}
-
-const ToolCallTable: React.FC<ToolCallTableProps> = ({ data }) => {
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+const ToolCallTable: React.FC = () => {
+  const [data, setData] = useState<ToolCallRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [loading, setLoading] = useState(false);
+  const [filteredStatus, setFilteredStatus] = useState<boolean | null>(null);
+  const [filteredAction, setFilteredAction] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
 
-  // 统计数据
-  const stats = useMemo(() => {
-    const success = data.filter((d) => d.isSuccess).length;
-    const failure = data.filter((d) => !d.isSuccess).length;
-    const avgDuration =
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, unknown> = { page, pageSize };
+      if (searchText) params.search = searchText;
+      if (filteredStatus !== null) params.isSuccess = filteredStatus;
+      if (filteredAction !== null) params.action = filteredAction;
+
+      const res = await getToolCallList(params as any);
+      setData(res.items || []);
+      setTotal(res.total || 0);
+    } catch (error) {
+      console.error("加载工具调用数据失败:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, searchText, filteredStatus, filteredAction]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 统计数据（基于当前页）
+  const stats = {
+    success: data.filter((d) => d.isSuccess).length,
+    failure: data.filter((d) => !d.isSuccess).length,
+    avgDuration:
       data.length > 0
         ? Math.round(data.reduce((sum, d) => sum + d.callTime, 0) / data.length)
-        : 0;
-    return { success, failure, avgDuration, total: data.length };
-  }, [data]);
-
-  const filteredData = data.filter((item) => {
-    // 状态筛选
-    if (statusFilter === "success" && !item.isSuccess) return false;
-    if (statusFilter === "failure" && item.isSuccess) return false;
-    // 关键字搜索
-    if (searchText) {
-      const text = searchText.toLowerCase();
-      return (
-        item.toolName.toLowerCase().includes(text) ||
-        item.sessionId.toLowerCase().includes(text) ||
-        item.id.toLowerCase().includes(text)
-      );
-    }
-    return true;
-  });
+        : 0,
+    total: data.length,
+  };
 
   const columns: ColumnsType<ToolCallRecord> = [
     {
@@ -89,6 +98,7 @@ const ToolCallTable: React.FC<ToolCallTableProps> = ({ data }) => {
         { text: "成功", value: true },
         { text: "失败", value: false },
       ],
+      filterMultiple: false,
       onFilter: (value, record) => record.isSuccess === value,
       render: (isSuccess: boolean) => (
         <Tag
@@ -97,6 +107,24 @@ const ToolCallTable: React.FC<ToolCallTableProps> = ({ data }) => {
           {isSuccess ? "成功" : "失败"}
         </Tag>
       ),
+    },
+    {
+      title: "是否阻断",
+      dataIndex: "action",
+      key: "action",
+      width: 90,
+      filters: [
+        { text: "是", value: "block" },
+        { text: "否", value: "allow" },
+      ],
+      filterMultiple: false,
+      onFilter: (value, record) => record.action === value,
+      render: (action: string) => {
+        if (action === "block") {
+          return <Tag color="red">是</Tag>;
+        }
+        return <Tag color="green">否</Tag>;
+      },
     },
     {
       title: "耗时",
@@ -188,21 +216,22 @@ const ToolCallTable: React.FC<ToolCallTableProps> = ({ data }) => {
         {/* 右侧：筛选栏 */}
         <div className={styles.filterRight}>
           <Input
-            placeholder="搜索工具名称、会话ID"
+            placeholder="搜索工具名称、调用ID"
             suffix={<SearchOutlined />}
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => {
+              setSearchText(e.target.value);
+              setPage(1);
+            }}
             className={styles.searchInput}
             allowClear
             size="middle"
           />
           <Tooltip title="刷新">
             <Button
-              icon={<ReloadOutlined />}
-              onClick={() => {
-                setSearchText("");
-                setStatusFilter("all");
-              }}
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={fetchData}
+              loading={loading}
             />
           </Tooltip>
         </div>
@@ -212,12 +241,31 @@ const ToolCallTable: React.FC<ToolCallTableProps> = ({ data }) => {
       <div className={styles.tableWrapper}>
         <Table
           columns={columns}
-          dataSource={filteredData}
+          dataSource={data}
+          loading={loading}
           pagination={{
-            pageSize: 10,
+            current: page,
+            pageSize,
+            total,
             showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条记录`,
+            showTotal: (t) => `共 ${t} 条记录`,
             showQuickJumper: true,
+          }}
+          onChange={(pagination, filters) => {
+            setPage(pagination.current || 1);
+            setPageSize(pagination.pageSize || 10);
+            const statusVal = filters.isSuccess as boolean[] | undefined;
+            if (statusVal && statusVal.length === 1) {
+              setFilteredStatus(statusVal[0]);
+            } else {
+              setFilteredStatus(null);
+            }
+            const actionVal = filters.action as string[] | undefined;
+            if (actionVal && actionVal.length === 1) {
+              setFilteredAction(actionVal[0]);
+            } else {
+              setFilteredAction(null);
+            }
           }}
           size="middle"
           scroll={{ x: 1100 }}

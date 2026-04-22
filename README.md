@@ -27,6 +27,7 @@ NSF-ClawGuard is a comprehensive real-time security monitoring plugin for [OpenC
 
 ### 🛡️ Runtime Protection
 - **Command Security Monitoring** — Intercepts and inspects dangerous shell commands before execution (reverse shells, file destruction, privilege escalation, credential theft, process injection, etc.)
+- **Command Blocking** — When `block_on_violation` policy is enabled, dangerous commands are actively blocked from execution, not just logged
 - **Content Safety Check** — Monitors both user input and AI output for malicious content via local rules or remote API
 - **Tool Call Auditing** — Logs all tool invocations (`exec`, `write`, `edit`) with duration, parameters, and success status
 - **Gateway Authentication Monitoring** — Real-time monitoring of Gateway WebSocket authentication events with brute-force detection
@@ -51,13 +52,15 @@ NSF-ClawGuard/
 ├── index.ts                     # Plugin entry point & event hooks
 ├── src/
 │   ├── api.ts                   # Remote API: violation reporting, heartbeat, content check
+│   ├── cloudPolicyConfig.ts     # Cloud policy fetching, LLM proxy mode management
 │   ├── command-security.ts      # 80+ dangerous command pattern detection rules
 │   ├── config-scanner.ts        # 30+ configuration security scan rules
-│   ├── skill-scanner.ts         # 8-category skill code static analysis
-│   ├── database.ts              # SQLite database (sql.js) with 4 tables
+│   ├── skill-scanner.ts         # 19-category skill code static analysis
+│   ├── database.ts              # SQLite database (sql.js) with 6 tables
 │   ├── event-store.ts           # Unified event storage & category mapping
 │   ├── logger.ts                # Prefixed logging wrapper
 │   ├── request.ts               # HTTP client with HMAC authentication
+│   ├── monitor-log-file.ts      # Real-time log file monitor (pub/sub proxy)
 │   ├── constants.ts             # Shared constants
 │   ├── types.ts                 # TypeScript type definitions
 │   ├── utils.ts                 # Utility functions
@@ -137,7 +140,14 @@ Scans `~/.openclaw/openclaw.json` across 7 security domains:
 | **Execution Security** | 6 rules | Exec security profile, write path restrictions, denied commands, MCP trust |
 | **Rate Limiting** | 1 rule | Rate limit configuration and threshold validation |
 
-### Skill Scanner (8 Categories)
+Additionally, the scanner detects:
+- **Dangerous Flags** — Identifies insecure boolean flags (e.g., `disableSafety`, `bypassAuth`, `noTLS`)
+- **Environment Variable Injection** — Detects dangerous env var references like `LD_PRELOAD`, `PYTHONPATH`, `GIT_SSH_COMMAND`
+- **Private Key Leakage** — Detects `.pem`, `.key`, `.p12` file paths in configuration
+- **Cryptocurrency Mnemonic Leakage** — Detects BIP39 mnemonics, wallet seeds, and private keys
+- **Gateway Bind Exposure** — Warns when Gateway binds to `0.0.0.0` or `::`
+
+### Skill Scanner (19 Categories)
 
 Performs static analysis on all installed skills:
 
@@ -149,6 +159,17 @@ Performs static analysis on all installed skills:
 6. **Dangerous Function Combinations** — Detects high-risk pairs: `child_process + fetch`, `eval + fetch`, `writeFile + exec`, etc.
 7. **Metadata Quality** — Checks for missing/incomplete `package.json` fields (description, author, etc.)
 8. **Install Hook Risks** — Detects dangerous npm scripts like `curl | bash`
+9. **Code Obfuscation Detection** — Detects pickle deserialization, Base64 decode pipes, `String.fromCharCode`, zero-width characters, Unicode RTL overrides, `<script>`/`<iframe>` injection
+10. **Command Execution Extended** — Detects `importlib.import_module`, `subprocess` with `shell=True`, `os.system()`, `pty.spawn`, `ctypes`/`cffi` native code loading, Java/.NET deserialization
+11. **Infrastructure Abuse** — Detects `chmod 777`, `0.0.0.0` binding, Docker privileged mode, `LD_PRELOAD` injection, anonymous tunnel services (ngrok, serveo, cloudflare)
+12. **Persistence Detection** — Detects crontab modification, LaunchAgent creation, shell RC file writes, SSH key injection, SOUL.md tampering, path traversal patterns
+13. **Prompt Injection Extended** — Detects jailbreak payloads (DAN mode), social engineering against AI reviewers, role reassignment, system prompt extraction, multi-language injection (Chinese/Russian), HTML comment-hidden instructions
+14. **Data Exfiltration** — Detects SSH key access, HTTP credential exfiltration, keystroke logging, clipboard access, DNS exfiltration, browser data access, environment variable echoing
+15. **Lateral Movement** — Detects sequential port scanning, DNS TXT queries, WebSocket connections to external hosts, Docker image export, `socat` relay tooling
+16. **Hardcoded Key Detection** — Detects OpenAI/AWS/GitHub/Stripe API keys, JWT tokens, database connection strings with passwords, wallet seed phrases
+17. **Autonomy Abuse** — Detects self-modifying code, dynamic code generation+execution, obfuscation intent, remote instruction fetching, hallucinated package references
+18. **Logic Vulnerability** — Detects wildcard imports (`import *`), bare `except` clauses, writes to sensitive paths, verbose error mode exposure
+19. **Financial Attack** — Detects wallet draining patterns, cryptocurrency mining (XMRLg, Coinhive), memecoin launcher domains, pump-and-dump token spam
 
 ### Command Security Monitor (80+ Patterns)
 
@@ -173,7 +194,7 @@ Intercepts tool calls in real-time, covering:
 |------|---------|--------|
 | `message_received` | User sends a message | Content safety check on input |
 | `agent_end` | AI agent finishes | Content safety check on output |
-| `before_tool_call` | Before tool execution | Command safety check for `exec`, `write`, `edit` |
+| `before_tool_call` | Before tool execution | Command safety check for `exec`, `write`, `edit`; blocks if `block_on_violation` is enabled |
 | `after_tool_call` | After tool execution | Log tool call with duration & result |
 | `llm_output` | LLM response received | Record token usage metrics |
 
@@ -185,10 +206,12 @@ All events are stored in a local SQLite database (`<pluginRoot>/data/lm-security
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| `security_events` | All security findings | category, sub_category, threat_level, event_time |
-| `token_usage` | AI token consumption | session_key, model, input/output/total tokens |
-| `tool_call` | Tool invocation records | tool_name, params, result, duration_ms |
+| `security_events` | All security findings | category, sub_category, threat_level, event_time, source, action |
+| `token_usage` | AI token consumption | session_key, model, input/output/total tokens, cache_read/write |
+| `tool_call` | Tool invocation records | tool_name, params, result, duration_ms, action |
 | `gateway_auth_logs` | Gateway auth events | event_type, conn_id, remote_ip, client |
+| `policy_config` | Cloud policy configuration | policy_version, skill/command/config_check_enabled, block_on_violation, llm_mode |
+| `default_model_config` | Default LLM model backup | provider_id, model_id |
 
 ---
 
@@ -227,6 +250,8 @@ Access the security dashboard at: **http://localhost:18789/web** (where `18789` 
 | `GET /lm-securty/overview` | Dashboard overview statistics |
 | `GET /lm-securty/events` | Security event list |
 | `GET /lm-securty/securityEventStats` | 7-day event trend chart data |
+| `GET /lm-securty/eventStats` | Event statistics summary |
+| `GET /lm-securty/riskDistribution` | Risk distribution chart data |
 | `GET /lm-securty/tokenUsage` | Token usage records |
 | `GET /lm-securty/toolCall` | Tool call records |
 | `GET /lm-securty/gatewayAuthLogs` | Gateway auth logs |

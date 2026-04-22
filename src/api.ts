@@ -3,16 +3,18 @@ import { checkCommandSafety } from "./command-security.js";
 import { getLogger } from "./logger.js";
 import * as fs from "fs";
 import * as path from "path";
-import { currentPluginRoot } from "./utils.js";
+import { currentPluginRoot, restartGateway } from "./utils.js";
 import {
   ensureDb,
   dbQueryGWAuthLogs,
   dbQueryTokenUsage,
   dbQueryToolCall,
   dbQuerySecurityEvents,
+  dbGetLatestPolicyConfig
 } from "./database.js";
 import type FormData from "form-data";
 import type { IInputMsgData } from "./types.js";
+import { IPolicyResponseData, response2ConfigAndSave, updateCurrentPolicyConfig, updateLLMConfigAndSaveConfig } from "./cloudPolicyConfig.js";
 
 interface IViolation {
   command: string;
@@ -42,7 +44,6 @@ interface IGatewayAuthLog {
   log_file?: string;
   raw_line?: string;
 }
-
 
 const violationQueue: IViolation[] = [];
 let isReporting = false;
@@ -268,15 +269,13 @@ async function reportGatewayAuthLogs(): Promise<void> {
       raw_line: log.raw_line as string,
     }));
 
-    const response = await requestManager.post<
+    await requestManager.post<
       ApiResponse<{
         errCode: number;
         errMsg: string;
         data: Record<string, unknown>;
       }>
     >("/api/v1/terminal/gateway-auth-logs", { logs: logsForApi });
-
-    const result = unWrapData(response);
     const maxId = Math.max(...logs.map((log) => log.id as number));
     updateGatewayAuthLogUploadProgress(maxId);
   } catch (error) {
@@ -357,7 +356,7 @@ async function reportTokenUsageLogs(): Promise<void> {
       extra_info: log.extra_info ? JSON.parse(log.extra_info as string) : {},
     }));
 
-    const response = await requestManager.post<
+    await requestManager.post<
       ApiResponse<{
         errCode: number;
         errMsg: string;
@@ -365,7 +364,6 @@ async function reportTokenUsageLogs(): Promise<void> {
       }>
     >("/api/v1/terminal/token-usage-logs", { logs: logsForApi });
 
-    const result = unWrapData(response);
     const maxId = Math.max(...logs.map((log) => log.id as number));
     updateTokenUsageUploadProgress(maxId);
   } catch (error) {
@@ -445,9 +443,10 @@ async function reportToolCallLogs(): Promise<void> {
       error_message: log.error_message as string,
       duration_ms: log.duration_ms as number,
       event_time: log.event_time as string,
+      action: log.action as string
     }));
 
-    const response = await requestManager.post<
+    await requestManager.post<
       ApiResponse<{
         errCode: number;
         errMsg: string;
@@ -455,7 +454,6 @@ async function reportToolCallLogs(): Promise<void> {
       }>
     >("/api/v1/terminal/tool-call-logs", { logs: logsForApi });
 
-    const result = unWrapData(response);
     const maxId = Math.max(...logs.map((log) => log.id as number));
     updateToolCallUploadProgress(maxId);
   } catch (error) {
@@ -520,7 +518,7 @@ async function reportViolations(): Promise<void> {
 
   try {
     // logger?.info(`[API Request] POST /api/v1/terminal/violations - 开始上报违规信息, 数量: ${violationsToReport.length}`);
-    const response = await requestManager.post<
+    await requestManager.post<
       ApiResponse<{
         errCode: number;
         errMsg: string;
@@ -528,7 +526,6 @@ async function reportViolations(): Promise<void> {
       }>
     >("/api/v1/terminal/violations", { violations: violationsToReport });
 
-    const result = unWrapData(response);
     // logger?.info(`[API Response] /api/v1/terminal/violations - 上报成功, 响应数据: ${JSON.stringify(result)}`);
   } catch (error) {
     logger?.error(
@@ -566,34 +563,9 @@ export function getViolationQueueSize(): number {
 }
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let heartbeatPluginVersion: string = "";
+let heartbeatIntervalMs: number = 60000;
 export let isPluginRevoked = false;
-
-async function sendHeartbeat(pluginVersion: string): Promise<boolean> {
-  const logger = getLogger();
-  if (isPluginRevoked || !requestManager.isRemoteEnabled) {
-    return false;
-  }
-
-  try {
-    // logger?.info(`[API Request] POST /api/v1/terminal/heartbeat - plugin_version: ${pluginVersion}`);
-    const response = await requestManager.post<
-      ApiResponse<{
-        errCode: number;
-        errMsg: string;
-        data: Record<string, unknown>;
-      }>
-    >("/api/v1/terminal/heartbeat", { plugin_version: pluginVersion });
-
-    // const result = unWrapData(response);
-    // logger?.info(`[API Response] /api/v1/terminal/heartbeat - 心跳成功, 响应数据: ${JSON.stringify(result)}`);
-    return true;
-  } catch (error) {
-    logger?.error(
-      `[API Error] /api/v1/terminal/heartbeat - 请求异常: ${error}`,
-    );
-    return false;
-  }
-}
 
 async function heartbeatWithRevocationCheck(
   pluginVersion: string,
@@ -603,18 +575,23 @@ async function heartbeatWithRevocationCheck(
     return;
   }
 
+  let policyVersion: string | null = null;
   try {
-    // logger?.info(`[API Request] POST /api/v1/terminal/heartbeat (revocation check) - plugin_version: ${pluginVersion}`);
-    const response = await requestManager.post<
-      ApiResponse<{
-        errCode: number;
-        errMsg: string;
-        data: Record<string, unknown>;
-      }>
-    >("/api/v1/terminal/heartbeat", { plugin_version: pluginVersion });
+    const config = await dbGetLatestPolicyConfig();
+    policyVersion = config?.policy_version || null;
+  } catch (error) {
+    logger?.warn(`[Heartbeat] 获取 policy_version 失败: ${error}`);
+  }
 
-    // const result = unWrapData(response);
-    // logger?.info(`[API Response] /api/v1/terminal/heartbeat (revocation check) - 心跳成功, 响应数据: ${JSON.stringify(result)}`);
+  try {
+    const response = await requestManager.post<ApiResponse<HeartbeatResponseData>>(
+      "/api/v1/terminal/heartbeat",
+      { plugin_version: pluginVersion, policy_version: policyVersion },
+    );
+    const result = unWrapData(response);
+
+    await handlePolicyUpdate(result);
+
   } catch (error) {
     const axiosError = error as { response?: { status?: number } };
     if (axiosError.response?.status === 401) {
@@ -638,11 +615,14 @@ export function startHeartbeatReporter(
     return;
   }
 
+  heartbeatPluginVersion = pluginVersion;
+  heartbeatIntervalMs = intervalMs;
+
   heartbeatWithRevocationCheck(pluginVersion);
 
   heartbeatTimer = setInterval(() => {
-    heartbeatWithRevocationCheck(pluginVersion);
-  }, intervalMs);
+    heartbeatWithRevocationCheck(heartbeatPluginVersion);
+  }, heartbeatIntervalMs);
 }
 
 export function stopHeartbeatReporter(): void {
@@ -650,16 +630,96 @@ export function stopHeartbeatReporter(): void {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
   }
+  heartbeatPluginVersion = "";
+  heartbeatIntervalMs = 60000;
 }
 
 export function isPluginRevokedStatus(): boolean {
   return isPluginRevoked;
 }
 
-export async function sendHeartbeatOnce(
-  pluginVersion: string,
-): Promise<boolean> {
-  return await sendHeartbeat(pluginVersion);
+/** 心跳响应数据接口 */
+interface HeartbeatResponseData {
+  policy_version: string;
+  policy_changed: boolean;
+  force_refresh: boolean;
+  heartbeat_interval: number;
+}
+
+/** 完整的心跳响应体 */
+interface HeartbeatResponse {
+  errCode: number;
+  errMsg: string;
+  data: HeartbeatResponseData;
+}
+
+/**
+ * 处理策略更新
+ * 当 policy_changed 或 force_refresh 为 true，或 policy_version 变化时调用
+ */
+async function handlePolicyUpdate(responseData: HeartbeatResponseData): Promise<void> {
+  const logger = getLogger();
+  const newPolicyVersion = responseData.policy_version;
+  const policyChanged = responseData.policy_changed;
+  const forceRefresh = responseData.force_refresh;
+  const heartbeatInterval = responseData.heartbeat_interval;
+
+  // 更新心跳间隔（转换为毫秒）
+  if (heartbeatInterval > 0) {
+    heartbeatIntervalMs = heartbeatInterval * 1000;
+    // logger?.info(`[Heartbeat] 更新心跳间隔: ${heartbeatInterval}s`);
+    // 重新设置心跳定时器
+    if (heartbeatTimer !== null) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = setInterval(() => {
+        heartbeatWithRevocationCheck(heartbeatPluginVersion);
+      }, heartbeatIntervalMs);
+    }
+  }
+
+  // 获取当前策略版本
+  let currentConfig = null;
+  try {
+    currentConfig = await dbGetLatestPolicyConfig();
+  } catch (error) {
+    logger?.warn(`[PolicyUpdate] 获取当前策略配置失败: ${error}`);
+  }
+
+  const currentPolicyVersion = currentConfig?.policy_version || null;
+
+  // 判断是否需要更新
+  const needUpdate = policyChanged || forceRefresh || newPolicyVersion !== currentPolicyVersion;
+
+  if (!needUpdate) {
+    return;
+  }
+
+  logger?.info(`[PolicyUpdate] 检测到策略更新: policy_changed=${policyChanged}, force_refresh=${forceRefresh}, version_changed=${newPolicyVersion !== currentPolicyVersion}`);
+
+  // 请求最新策略配置
+  try {
+    const response = await requestManager.get<ApiResponse<IPolicyResponseData>>(
+      "/api/v1/terminal/policy",
+    );
+    const policyData = response.data.data;
+
+    if (!policyData) {
+      logger?.error(`[PolicyUpdate] 获取策略配置失败`);
+      return;
+    }
+
+    const stepNext =  await updateLLMConfigAndSaveConfig(currentConfig, policyData);
+    if(!stepNext) return
+
+    updateCurrentPolicyConfig(currentConfig);
+
+    logger?.info(`[PolicyUpdate] 策略配置已更新: version=${policyData.version}, llm_mode=${policyData.llm_mode}`);
+
+    // Todo: 是否需要根据新配置执行一次配置和 skill 检测？
+
+  } catch (error) {
+    logger?.error(`[PolicyUpdate] 获取策略配置失败: ${error}`);
+  }
 }
 
 interface ICheckContentResponse {
@@ -699,7 +759,7 @@ interface ICheckResponseData {
   details: {
     matched_pattern: string;
   };
-  source: "local" | "remote";
+  source: "local" | "cloud";
 }
 export function checkCommad(command: string, filePath?: string) {
   const localMatches = checkCommandSafety(command, filePath);
@@ -746,7 +806,7 @@ export function checkCommad(command: string, filePath?: string) {
       const result = unWrapData(response);
       return {
         ...result,
-        source: "remote" as const,
+        source: "cloud" as const,
       };
     });
 }
@@ -777,6 +837,7 @@ async function reportSecurityEventLogs(): Promise<void> {
     const logs = await dbQuerySecurityEvents({
       idAfter: lastUploadedId,
       limit: 500,
+      source: "local",
     });
 
     if (logs.length === 0) {
@@ -794,15 +855,13 @@ async function reportSecurityEventLogs(): Promise<void> {
       event_info: log.event_info as string,
     }));
 
-    const response = await requestManager.post<
+    await requestManager.post<
       ApiResponse<{
         errCode: number;
         errMsg: string;
         data: Record<string, unknown>;
       }>
     >("/api/v1/terminal/security-event-logs", { logs: logsForApi });
-
-    const result = unWrapData(response);
     const maxId = Math.max(...logs.map((log) => log.id as number));
     updateSecurityEventLogUploadProgress(maxId);
   } catch (error) {
@@ -848,4 +907,3 @@ export async function getSecurityEventLogQueueSize(): Promise<number> {
 export function getLastUploadedSecurityEventLogId(): number {
   return _getLastUploadedSecurityEventLogId();
 }
-

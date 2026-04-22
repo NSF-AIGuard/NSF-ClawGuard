@@ -45,7 +45,14 @@ import type {
   PluginHookAgentContext,
   PluginHookLlmOutputEvent,
 } from "./src/types.js";
+import {
+  currentPolicyConfig,
+  initPolicyConfig,
+  setOpenclawConfig,
+} from "./src/cloudPolicyConfig.js";
 
+
+const BLOCK_MARK = 'block_mark'
 async function registerWhenGatewayStart(api: OpenClawPluginApi) {
   const pluginVersion = api.version;
   const hackLogger = initializeLogger(api);
@@ -59,159 +66,174 @@ async function registerWhenGatewayStart(api: OpenClawPluginApi) {
   registerHttpRoute(api);
   await ensureDb();
   setDbReady();
-  // 启动时运行配置文件安全扫描
-  const { results } = getScanResults();
-  if (results.length > 0) {
-    const critical = results.filter((r) => r.severity === "critical");
-    const mediums = results.filter((r) => r.severity === "medium");
 
-    if (critical.length > 0) {
-      hackLogger.warn(`🔴 配置安全扫描发现 ${critical.length} 个严重问题`);
-      for (const r of critical) {
-        hackLogger.warn(`   - ${r.path}: ${r.message}`);
-      }
-    }
-    if (mediums.length > 0) {
-      hackLogger.info(`🟡 配置安全扫描发现 ${mediums.length} 个中危问题`);
-    }
-    if (critical.length === 0 && mediums.length === 0) {
-      hackLogger.info(`✅ 配置安全扫描: 未发现安全问题`);
-    }
-
-    try {
-      const savedCount = await saveConfigSecurityEvents();
-      if (savedCount > 0) {
-        hackLogger.info(`📝 已将 ${savedCount} 条配置安全事件落地到 CSV`);
-      }
-    } catch (err) {
-      hackLogger.error(`🔍 CSV 落地失败: ${err}`);
-    }
-  } else {
-    hackLogger.info(`✅ 配置安全扫描: 无问题或无法加载配置`);
-  }
-
-  // ── 运行时安全检查 ──────────────────────────────────────
-  // SOUL.md 提示注入检测
-  let soulResults: ReturnType<typeof checkSoulMdInjection> = [];
+  // 启动时获取策略配置
   try {
-    soulResults = checkSoulMdInjection();
-    if (soulResults.length > 0) {
-      hackLogger.warn(
-        `🔴 SOUL.md 提示注入检测: 发现 ${soulResults.length} 个问题`,
-      );
-      for (const r of soulResults) {
-        hackLogger.warn(`   - ${r.path}: ${r.message}`);
-      }
-    } else {
-      hackLogger.info(`✅ SOUL.md 提示注入检测: 未发现问题`);
-    }
-  } catch (error) {
-    hackLogger.error(`🔍 SOUL.md 检测失败: ${error}`);
-  }
-
-  // npm 依赖漏洞扫描
-  let npmResults: ReturnType<typeof checkNpmAudit> = [];
-  try {
-    npmResults = checkNpmAudit();
-    if (npmResults.length > 0) {
-      const r = npmResults[0];
-      if (r.severity === "critical") {
-        hackLogger.error(`🔴 npm audit: ${r.message}`);
-      } else if (r.severity === "medium") {
-        hackLogger.warn(`🟠 npm audit: ${r.message}`);
-      } else {
-        hackLogger.info(`🟡 npm audit: ${r.message}`);
-      }
-    } else {
-      hackLogger.info(`✅ npm audit: 未发现已知漏洞`);
-    }
-  } catch (error) {
-    hackLogger.error(`🔍 npm audit 检测失败: ${error}`);
-  }
-
-  // Node.js 版本 EOL 检测
-  let nodeEolResults: ReturnType<typeof checkNodeEol> = [];
-  try {
-    nodeEolResults = checkNodeEol();
-    if (nodeEolResults.length > 0) {
-      const r = nodeEolResults[0];
-      if (r.severity === "critical") {
-        hackLogger.error(`🔴 Node.js 版本 EOL: ${r.message}`);
-      } else {
-        hackLogger.warn(`🟡 Node.js 版本 EOL: ${r.message}`);
-      }
-    } else {
-      hackLogger.info(`✅ Node.js 版本正常`);
-    }
-  } catch (error) {
-    hackLogger.error(`🔍 Node.js 版本检测失败: ${error}`);
-  }
-
-  // 落地 runtime-check 事件（soul-md-injection, npm-audit, node-eol）
-  try {
-    const savedCount = await saveRuntimeCheckEvents(
-      soulResults,
-      npmResults,
-      nodeEolResults,
-    );
-    if (savedCount > 0) {
-      hackLogger.info(`📝 已将 ${savedCount} 条运行时检测事件落地到 CSV`);
-    }
+    await initPolicyConfig();
+    hackLogger.info(`📋 策略配置加载完成`);
   } catch (err) {
-    hackLogger.error(`🔍 runtime-check CSV 落地失败: ${err}`);
+    hackLogger.warn(`📋 策略配置加载失败: ${err}`);
   }
 
-  // ── Skill 本地静态安全扫描 ──────────────────────────────
-  try {
-    const skillReports = scanAllSkills();
-    let skillCritical = 0,
-      skillHigh = 0,
-      skillMedium = 0,
-      skillLow = 0;
-    for (const report of skillReports.values()) {
-      if (report.maxSeverity === "critical") skillCritical++;
-      else if (report.maxSeverity === "high") skillHigh++;
-      else if (report.maxSeverity === "medium") skillMedium++;
-      else if (report.maxSeverity === "low") skillLow++;
-    }
-    if (skillCritical > 0) {
-      hackLogger.error(
-        `🔴 Skill 安全扫描: 发现 ${skillCritical} 个 Critical / ${skillHigh} 个 High 问题`,
-      );
-      for (const [name, report] of skillReports) {
-        if (report.maxSeverity === "critical") {
-          hackLogger.error(`   🔴 ${name}: ${report.totalFindings} 个问题`);
+  if (currentPolicyConfig?.config_check_enabled) {
+    // 启动时运行配置文件安全扫描
+    const { results } = getScanResults();
+    if (results.length > 0) {
+      const critical = results.filter((r) => r.severity === "critical");
+      const mediums = results.filter((r) => r.severity === "medium");
+
+      if (critical.length > 0) {
+        hackLogger.warn(`🔴 配置安全扫描发现 ${critical.length} 个严重问题`);
+        for (const r of critical) {
+          hackLogger.warn(`   - ${r.path}: ${r.message}`);
         }
       }
-    } else if (skillHigh > 0) {
-      hackLogger.warn(
-        `🟠 Skill 安全扫描: 发现 ${skillHigh} 个 High / ${skillMedium} 个 Medium 问题`,
-      );
-    } else if (skillMedium > 0 || skillLow > 0) {
-      hackLogger.info(
-        `🟡 Skill 安全扫描: 发现 ${skillMedium} 个 Medium / ${skillLow} 个 Low 问题`,
-      );
+      if (mediums.length > 0) {
+        hackLogger.info(`🟡 配置安全扫描发现 ${mediums.length} 个中危问题`);
+      }
+      if (critical.length === 0 && mediums.length === 0) {
+        hackLogger.info(`✅ 配置安全扫描: 未发现安全问题`);
+      }
+
+      try {
+        const savedCount = await saveConfigSecurityEvents("local");
+        if (savedCount > 0) {
+          hackLogger.info(`📝 已将 ${savedCount} 条配置安全事件记录到数据库`);
+        }
+      } catch (err) {
+        hackLogger.error(`🔍 配置安全事件记录失败: ${err}`);
+      }
     } else {
-      hackLogger.info(`✅ Skill 安全扫描: 未发现问题`);
+      hackLogger.info(`✅ 配置安全扫描: 无问题或无法加载配置`);
     }
 
-    // 落地 skill_security 事件
+    // ── 运行时安全检查 ──────────────────────────────────────
+    // SOUL.md 提示注入检测
+    let soulResults: ReturnType<typeof checkSoulMdInjection> = [];
     try {
-      const savedCount = await saveSkillSecurityEvents(skillReports);
+      soulResults = checkSoulMdInjection();
+      if (soulResults.length > 0) {
+        hackLogger.warn(
+          `🔴 SOUL.md 提示注入检测: 发现 ${soulResults.length} 个问题`,
+        );
+        for (const r of soulResults) {
+          hackLogger.warn(`   - ${r.path}: ${r.message}`);
+        }
+      } else {
+        hackLogger.info(`✅ SOUL.md 提示注入检测: 未发现问题`);
+      }
+    } catch (error) {
+      hackLogger.error(`🔍 SOUL.md 检测失败: ${error}`);
+    }
+
+    // npm 依赖漏洞扫描
+    let npmResults: ReturnType<typeof checkNpmAudit> = [];
+    try {
+      npmResults = checkNpmAudit();
+      if (npmResults.length > 0) {
+        const r = npmResults[0];
+        if (r.severity === "critical") {
+          hackLogger.error(`🔴 npm audit: ${r.message}`);
+        } else if (r.severity === "medium") {
+          hackLogger.warn(`🟠 npm audit: ${r.message}`);
+        } else {
+          hackLogger.info(`🟡 npm audit: ${r.message}`);
+        }
+      } else {
+        hackLogger.info(`✅ npm audit: 未发现已知漏洞`);
+      }
+    } catch (error) {
+      hackLogger.error(`🔍 npm audit 检测失败: ${error}`);
+    }
+
+    // Node.js 版本 EOL 检测
+    let nodeEolResults: ReturnType<typeof checkNodeEol> = [];
+    try {
+      nodeEolResults = checkNodeEol();
+      if (nodeEolResults.length > 0) {
+        const r = nodeEolResults[0];
+        if (r.severity === "critical") {
+          hackLogger.error(`🔴 Node.js 版本 EOL: ${r.message}`);
+        } else {
+          hackLogger.warn(`🟡 Node.js 版本 EOL: ${r.message}`);
+        }
+      } else {
+        hackLogger.info(`✅ Node.js 版本正常`);
+      }
+    } catch (error) {
+      hackLogger.error(`🔍 Node.js 版本检测失败: ${error}`);
+    }
+
+    // 落地 runtime-check 事件（soul-md-injection, npm-audit, node-eol）
+    try {
+      const savedCount = await saveRuntimeCheckEvents(
+        soulResults,
+        npmResults,
+        nodeEolResults,
+        "local",
+      );
       if (savedCount > 0) {
-        hackLogger.info(`📝 已将 ${savedCount} 条 Skill 安全事件落地到 CSV`);
+        hackLogger.info(`📝 已将 ${savedCount} 条运行时检测事件记录到数据库`);
       }
     } catch (err) {
-      hackLogger.error(`🔍 skill_security CSV 落地失败: ${err}`);
+      hackLogger.error(`🔍 runtime-check 记录失败: ${err}`);
     }
-  } catch (error) {
-    hackLogger.error(`🔍 Skill 安全扫描失败: ${error}`);
+  }
+
+  if (currentPolicyConfig?.skill_check_enabled) {
+    // ── Skill 本地静态安全扫描 ──────────────────────────────
+    try {
+      const skillReports = scanAllSkills();
+      let skillCritical = 0,
+        skillHigh = 0,
+        skillMedium = 0,
+        skillLow = 0;
+      for (const report of skillReports.values()) {
+        if (report.maxSeverity === "critical") skillCritical++;
+        else if (report.maxSeverity === "high") skillHigh++;
+        else if (report.maxSeverity === "medium") skillMedium++;
+        else if (report.maxSeverity === "low") skillLow++;
+      }
+      if (skillCritical > 0) {
+        hackLogger.error(
+          `🔴 Skill 安全扫描: 发现 ${skillCritical} 个 Critical / ${skillHigh} 个 High 问题`,
+        );
+        for (const [name, report] of skillReports) {
+          if (report.maxSeverity === "critical") {
+            hackLogger.error(`   🔴 ${name}: ${report.totalFindings} 个问题`);
+          }
+        }
+      } else if (skillHigh > 0) {
+        hackLogger.warn(
+          `🟠 Skill 安全扫描: 发现 ${skillHigh} 个 High / ${skillMedium} 个 Medium 问题`,
+        );
+      } else if (skillMedium > 0 || skillLow > 0) {
+        hackLogger.info(
+          `🟡 Skill 安全扫描: 发现 ${skillMedium} 个 Medium / ${skillLow} 个 Low 问题`,
+        );
+      } else {
+        hackLogger.info(`✅ Skill 安全扫描: 未发现问题`);
+      }
+
+      // 落地 skill_security 事件
+      try {
+        const savedCount = await saveSkillSecurityEvents(skillReports, "local");
+        if (savedCount > 0) {
+          hackLogger.info(`📝 已将 ${savedCount} 条 Skill 安全事件落地到 CSV`);
+        }
+      } catch (err) {
+        hackLogger.error(`🔍 skill_security 记录失败: ${err}`);
+      }
+    } catch (error) {
+      hackLogger.error(`🔍 Skill 安全扫描失败: ${error}`);
+    }
   }
 
   // 只有远端功能启用时才启动违规上报和心跳
   if (ok) {
+    const heartbeat_interval = currentPolicyConfig?.heartbeat_interval! * 1000;
     startViolationReporter(30000);
-    startHeartbeatReporter(pluginVersion, 60000);
+    startHeartbeatReporter(pluginVersion, heartbeat_interval);
     startGatewayAuthLogReporter(30000);
     startTokenUsageLogReporter(30000);
     startToolCallLogReporter(30000);
@@ -295,7 +317,7 @@ async function registerWhenGatewayStart(api: OpenClawPluginApi) {
       let logEntry: Record<string, unknown>;
       try {
         logEntry = JSON.parse(line);
-      } catch (err){
+      } catch (err) {
         return;
       }
 
@@ -417,18 +439,21 @@ async function registerWhenGatewayStart(api: OpenClawPluginApi) {
   } catch (err) {
     hackLogger.error(`[Gateway Auth] 日志监听启动失败: ${err}`);
   }
-
 }
 
 export default async function register(api: OpenClawPluginApi) {
   const hackLogger = initializeLogger(api);
+  const config = api.config;
+  setOpenclawConfig(config);
   api.on("gateway_start", async () => {
     registerWhenGatewayStart(api);
   });
 
-
   // Hook: Check user input for threats
   api.on("message_received", async (event: { content: string }) => {
+    if (currentPolicyConfig?.llm_mode == "proxy") {
+      return;
+    }
     const content = event.content;
     if (!content || content.length === 0) return;
     try {
@@ -449,9 +474,10 @@ export default async function register(api: OpenClawPluginApi) {
           result.suggestion,
           result.sessionId || "",
           result.reqMsgId || "",
+          "cloud",
         );
       } catch (err) {
-        hackLogger.error(`🔍 content_check CSV 落地失败: ${err}`);
+        hackLogger.error(`🔍 content_check 记录失败: ${err}`);
       }
     } catch (error) {
       hackLogger.error(`🔍 用户输入风险提示词输入检测失败 ${error}`);
@@ -460,6 +486,9 @@ export default async function register(api: OpenClawPluginApi) {
 
   // Hook: Check model output for threats (after agent finishes)
   api.on("agent_end", async (event: { messages: unknown[] }) => {
+    if (currentPolicyConfig?.llm_mode == "proxy") {
+      return;
+    }
     if (event.messages && event.messages.length > 0) {
       let modelOutput = "";
       for (let i = event.messages.length - 1; i >= 0; i--) {
@@ -499,9 +528,10 @@ export default async function register(api: OpenClawPluginApi) {
               result.suggestion,
               result.sessionId || "",
               result.reqMsgId || "",
+              "cloud",
             );
           } catch (err) {
-            hackLogger.error(`🔍 content_check CSV 落地失败: ${err}`);
+            hackLogger.error(`🔍 content_check 记录失败: ${err}`);
           }
         } catch (error) {
           hackLogger.error(`🔍 agent风险输出检测失败 ${error}`);
@@ -518,9 +548,9 @@ export default async function register(api: OpenClawPluginApi) {
       runId?: string;
       toolCallId?: string;
     }) => {
-      hackLogger.warn(
-        `🔍 -----》event.toolName：[${event.toolName}]-----》event.params[${JSON.stringify(event.params)}]， runId[${event.runId}], toolCallId[${event.toolCallId}]`,
-      );
+      if (!currentPolicyConfig?.command_check_enabled) {
+        return;
+      }
       if (event.toolName === "exec") {
         const command = event.params?.command as string;
         if (command) {
@@ -528,7 +558,7 @@ export default async function register(api: OpenClawPluginApi) {
             const result = await checkCommad(command);
             if (!result.is_safe) {
               const sourceText =
-                result.source === "local" ? "本地规则" : "远端API";
+                result.source === "local" ? "本地规则" : "云端检测";
               hackLogger.warn(
                 `🔍 [${sourceText}] 命令${command}存在危险行为: ${result.reason}`,
               );
@@ -537,10 +567,17 @@ export default async function register(api: OpenClawPluginApi) {
                 saveCommandViolationEvent(
                   command,
                   result.reason,
-                  result.source as "local" | "remote",
+                  result.source as "local" | "cloud",
+                  currentPolicyConfig?.block_on_violation ? "block" : "allow",
                 );
+                if (currentPolicyConfig?.block_on_violation) {
+                  return {
+                    block: true,
+                    blockReason: `命令${command}存在危险行为${BLOCK_MARK}`,
+                  };
+                }
               } catch (err) {
-                hackLogger.error(`🔍 command_violation CSV 落地失败: ${err}`);
+                hackLogger.error(`🔍 command_violation 记录失败: ${err}`);
               }
               return;
             }
@@ -561,7 +598,7 @@ export default async function register(api: OpenClawPluginApi) {
             const result = await checkCommad("", filePath);
             if (!result.is_safe) {
               const sourceText =
-                result.source === "local" ? "本地规则" : "远端API";
+                result.source === "local" ? "本地规则" : "云端检测";
               hackLogger.warn(
                 `🔍 [${sourceText}] 路径${filePath}存在危险行为: ${result.reason}`,
               );
@@ -570,10 +607,17 @@ export default async function register(api: OpenClawPluginApi) {
                 saveCommandViolationEvent(
                   `[file_path: ${filePath}]`,
                   result.reason,
-                  result.source as "local" | "remote",
+                  result.source as "local" | "cloud",
+                  currentPolicyConfig?.block_on_violation ? "block" : "allow",
                 );
+                if (currentPolicyConfig?.block_on_violation) {
+                  return {
+                    block: true,
+                    blockReason: `针对路径${filePath}存在危险行为${BLOCK_MARK}`,
+                  };
+                }
               } catch (err) {
-                hackLogger.error(`🔍 command_violation CSV 落地失败: ${err}`);
+                hackLogger.error(`🔍 command_violation 记录失败: ${err}`);
               }
               return;
             }
@@ -586,6 +630,7 @@ export default async function register(api: OpenClawPluginApi) {
         }
         return;
       }
+      return 
     },
   );
 
@@ -606,8 +651,11 @@ export default async function register(api: OpenClawPluginApi) {
       hackLogger.warn(
         `🔍 after_tool_call: tool=${event.toolName} runId=${event.runId} toolCallId=${event.toolCallId} durationMs=${event.durationMs} error=${event.error || "none"}`,
       );
-      // 记录到 CSV
+
       try {
+        const error = event.error??""
+        const hasMark = error.endsWith(BLOCK_MARK)
+        const nError = error.replaceAll(BLOCK_MARK,'')
         saveToolCallEvent(
           ctx.sessionKey || "N/A",
           ctx.agentId || "N/A",
@@ -616,12 +664,13 @@ export default async function register(api: OpenClawPluginApi) {
           event.toolName,
           event.params,
           event.result,
-          !event.error,
-          event.error || "",
+          !nError,
+          nError,
           event.durationMs ?? -1,
+          hasMark && currentPolicyConfig?.block_on_violation ?"block" : "allow",
         );
       } catch (err) {
-        hackLogger.error(`🔍 tool_call CSV 落地失败: ${err}`);
+        hackLogger.error(`🔍 tool_call 记录失败: ${err}`);
       }
     },
   );

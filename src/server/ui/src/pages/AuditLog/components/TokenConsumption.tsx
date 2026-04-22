@@ -1,16 +1,36 @@
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Table, Tag, Tooltip, Space } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { TokenConsumptionRecord } from "@/types/auditLog";
+import { getTokenConsumptionList } from "@/api/auditLog";
 import { formatTokens, formatTime } from "../constants";
 import parentStyles from "../index.module.less";
 import styles from "./TokenConsumption.module.less";
 
-interface TokenConsumptionProps {
-  data: TokenConsumptionRecord[];
-}
+const TokenConsumption: React.FC = () => {
+  const [data, setData] = useState<TokenConsumptionRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [loading, setLoading] = useState(false);
 
-const TokenConsumption: React.FC<TokenConsumptionProps> = ({ data }) => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getTokenConsumptionList({ page, pageSize });
+      setData(res.items || []);
+      setTotal(res.total || 0);
+    } catch (error) {
+      console.error("加载 Token 消耗数据失败:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const totalInput = useMemo(
     () => data.reduce((sum, d) => sum + d.inputTokens, 0),
     [data],
@@ -191,10 +211,18 @@ const TokenConsumption: React.FC<TokenConsumptionProps> = ({ data }) => {
         <Table
           columns={columns}
           dataSource={data}
+          loading={loading}
           pagination={{
-            pageSize: 10,
+            current: page,
+            pageSize,
+            total,
             showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条记录`,
+            showTotal: (t) => `共 ${t} 条记录`,
+            showQuickJumper: true,
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            },
           }}
           size="middle"
           scroll={{ x: 1000 }}

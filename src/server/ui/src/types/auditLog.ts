@@ -50,6 +50,7 @@ export interface ToolCallRecord {
   inputParams?: string
   outputResult?: string
   errorMessage?: string
+  action?: string // 'block' 表示被阻断, 'allow' 或空表示放行
 }
 
 /** 网关认证日志事件类型 */
@@ -76,6 +77,41 @@ export interface GatewayAuthLogRecord {
   runtimeVersion: string
   hostname: string
   rawLine?: string
+}
+
+/** 分页响应结构 */
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+/** 工具调用列表查询参数 */
+export interface ToolCallQueryParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  isSuccess?: boolean
+}
+
+/** Token 使用量列表查询参数 */
+export interface TokenUsageQueryParams {
+  page?: number
+  pageSize?: number
+  sessionKey?: string
+  startTime?: string
+  endTime?: string
+}
+
+/** 网关认证日志列表查询参数 */
+export interface GatewayAuthLogQueryParams {
+  page?: number
+  pageSize?: number
+  eventType?: string
+  eventId?: string
+  timeSort?: 'ASC' | 'DESC'
 }
 
 /** 概览统计数据 */

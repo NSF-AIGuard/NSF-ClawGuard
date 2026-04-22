@@ -30,3 +30,11 @@ export interface Statistics {
   low: number
   info: number
 }
+
+export interface RiskDistribution {
+  config_security: number
+  skill_security: number
+  command_violation: number
+  component_change: number
+  content_check: number
+}

@@ -5,6 +5,10 @@ import type {
   ToolCallRecord,
   OverviewStatistics,
   GatewayAuthLogRecord,
+  PaginatedResponse,
+  ToolCallQueryParams,
+  TokenUsageQueryParams,
+  GatewayAuthLogQueryParams,
 } from "@/types/auditLog";
 
 /**
@@ -16,21 +20,21 @@ export const getAuthLogList = async (): Promise<AuthLogRecord[]> => {
 };
 
 /**
- * 获取会话Token消耗列表
- * @returns Promise<TokenConsumptionRecord[]>
+ * 获取会话Token消耗列表（支持分页和筛选）
  */
-export const getTokenConsumptionList = async (): Promise<
-  TokenConsumptionRecord[]
-> => {
-  return http.get<TokenConsumptionRecord[]>("/lm-securty/tokenUsage");
+export const getTokenConsumptionList = async (
+  params?: TokenUsageQueryParams,
+): Promise<PaginatedResponse<TokenConsumptionRecord>> => {
+  return http.get<PaginatedResponse<TokenConsumptionRecord>>("/lm-securty/tokenUsage", { params });
 };
 
 /**
- * 获取工具调用记录列表
- * @returns Promise<ToolCallRecord[]>
+ * 获取工具调用记录列表（支持分页和筛选）
  */
-export const getToolCallList = async (): Promise<ToolCallRecord[]> => {
-  return http.get<ToolCallRecord[]>("/lm-securty/toolCall");
+export const getToolCallList = async (
+  params?: ToolCallQueryParams,
+): Promise<PaginatedResponse<ToolCallRecord>> => {
+  return http.get<PaginatedResponse<ToolCallRecord>>("/lm-securty/toolCall", { params });
 };
 
 /**
@@ -42,11 +46,10 @@ export const getOverviewStatistics = async (): Promise<OverviewStatistics> => {
 };
 
 /**
- * 获取网关认证日志列表
- * @returns Promise<GatewayAuthLogRecord[]>
+ * 获取网关认证日志列表（支持分页和筛选）
  */
-export const getGatewayAuthLogList = async (): Promise<
-  GatewayAuthLogRecord[]
-> => {
-  return http.get<GatewayAuthLogRecord[]>("/lm-securty/gatewayAuthLogs");
+export const getGatewayAuthLogList = async (
+  params?: GatewayAuthLogQueryParams,
+): Promise<PaginatedResponse<GatewayAuthLogRecord>> => {
+  return http.get<PaginatedResponse<GatewayAuthLogRecord>>("/lm-securty/gatewayAuthLogs", { params });
 };

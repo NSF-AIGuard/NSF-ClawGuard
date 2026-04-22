@@ -37,6 +37,6 @@ export default function initializeLogger(
   return hackLogger;
 }
 export function getLogger() {
-  return hackLogger;
+  return hackLogger!;
 }
    

@@ -1,6 +1,9 @@
+import { useState, useEffect, useCallback } from "react";
 import { Card, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { SecurityEvent } from "@/types/dashboard";
+import { getThreatList } from "@/api/threat";
+import type { ThreatEvent } from "@/types/threat";
 import { categoryMap, threatLevelMap } from "../constants.tsx";
 import styles from "./SecurityEventTable.module.less";
 
@@ -13,18 +16,65 @@ const hexToRgba = (hex: string, opacity: number) => {
 };
 
 interface SecurityEventTableProps {
-  data: SecurityEvent[];
   activeTab: string;
   onTabChange: (key: string) => void;
   selectedThreatLevel: string | null;
-  onThreatLevelClear: () => void;
+  onThreatLevelChange: (level: string | null) => void;
 }
 
 const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
-  data,
   activeTab,
   onTabChange,
+  selectedThreatLevel,
+  onThreatLevelChange,
 }) => {
+  const [data, setData] = useState<SecurityEvent[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, unknown> = { page, pageSize };
+      if (selectedThreatLevel) params.threat_level = selectedThreatLevel;
+      if (activeTab !== "all") params.category = activeTab;
+
+      const res = await getThreatList(params);
+
+      // Transform ThreatEvent[] to SecurityEvent[]
+      const transformedData: SecurityEvent[] = res.items.map(
+        (event: ThreatEvent, index: number) => ({
+          key: `${(page - 1) * pageSize + index}-${event.event_time}`,
+          category: event.category,
+          subCategory: event.sub_category,
+          threatLevel: event.threat_level,
+          recommendation: event.recommendation,
+          eventTime: event.event_time,
+          subCategoryDescription: event.sub_category_description,
+          eventInfo: event.event_info,
+        }),
+      );
+
+      setData(transformedData);
+      setTotal(res.total || 0);
+    } catch (error) {
+      console.error("加载安全事件数据失败:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, selectedThreatLevel, activeTab]);
+
+  // activeTab 变化时重置分页到第1页
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   // 表格列定义
   const columns: ColumnsType<SecurityEvent> = [
     {
@@ -34,7 +84,7 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
       width: 120,
       render: (category) => {
         const config = categoryMap[category as keyof typeof categoryMap];
-        const color = config?.color || '#d9d9d9';
+        const color = config?.color || "#d9d9d9";
         return (
           <span
             className={styles.tagBadge}
@@ -73,10 +123,10 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
         { text: "低危", value: "low" },
         { text: "日志", value: "info" },
       ],
-      onFilter: (value, record) => record.threatLevel === value,
+      filterMultiple: false,
       render: (level) => {
         const config = threatLevelMap[level as keyof typeof threatLevelMap];
-        const color = config?.color || '#d9d9d9';
+        const color = config?.color || "#d9d9d9";
         return (
           <span
             className={styles.tagBadge}
@@ -97,7 +147,7 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
       ellipsis: true,
       render: (recommendation) => (
         <span
-          className={`${styles.recommendationText} ${!recommendation ? styles.empty : ''}`}
+          className={`${styles.recommendationText} ${!recommendation ? styles.empty : ""}`}
         >
           {recommendation || "-"}
         </span>
@@ -122,23 +172,13 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
     },
   ];
 
-  // 分页配置
-  const paginationConfig = {
-    pageSize: 10,
-    showSizeChanger: true,
-    showTotal: (total: number) => `共 ${total} 条记录`,
-    showQuickJumper: true,
-  };
-
   return (
     <Card
       headStyle={{
         minHeight: "48px",
       }}
       title={
-        <span className={styles.cardTitle}>
-          安全事件详情
-        </span>
+        <span className={styles.cardTitle}>安全事件详情</span>
       }
     >
       <div className={styles.tabContainer}>
@@ -151,8 +191,11 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
         ].map((item) => (
           <button
             key={item.key}
-            onClick={() => onTabChange(item.key)}
-            className={`${styles.tabButton} ${activeTab === item.key ? styles.active : ''}`}
+            onClick={() => {
+              onTabChange(item.key);
+              setPage(1);
+            }}
+            className={`${styles.tabButton} ${activeTab === item.key ? styles.active : ""}`}
           >
             {item.label}
           </button>
@@ -162,7 +205,25 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
       <Table
         columns={columns}
         dataSource={data}
-        pagination={paginationConfig}
+        loading={loading}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          showSizeChanger: true,
+          showTotal: (t) => `共 ${t} 条记录`,
+          showQuickJumper: true,
+        }}
+        onChange={(pagination, filters) => {
+          setPage(pagination.current || 1);
+          setPageSize(pagination.pageSize || 10);
+          const levelVal = filters.threatLevel as string[] | undefined;
+          if (levelVal && levelVal.length === 1) {
+            onThreatLevelChange(levelVal[0]);
+          } else {
+            onThreatLevelChange(null);
+          }
+        }}
         size="middle"
         scroll={{ x: 800 }}
         rowClassName={(record) => {
@@ -173,9 +234,7 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
         expandable={{
           expandedRowRender: (record) => (
             <div className={styles.expandedRow}>
-              <div className={styles.expandedRowTitle}>
-                事件信息
-              </div>
+              <div className={styles.expandedRowTitle}>事件信息</div>
               <div className={styles.expandedRowContent}>
                 {record.eventInfo || "暂无事件信息"}
               </div>
@@ -185,7 +244,6 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
           defaultExpandAllRows: false,
         }}
       />
-
     </Card>
   );
 };

@@ -3,16 +3,30 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import MainLayout from '@/layouts/MainLayout'
 
-// 加载组件
+// 加载组件（深色主题风格）
 const LoadingFallback = () => (
   <div style={{
     display: 'flex',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
     height: '100vh',
-    background: '#f0f2f5'
+    background: '#0d1117',
+    gap: '16px',
   }}>
-    <Spin size="large" tip="加载中..." />
+    <style>{`
+      .route-loading-spin .ant-spin-dot-item {
+        background: #55a722 !important;
+      }
+    `}</style>
+    <Spin size="large" className="route-loading-spin" />
+    <span style={{
+      color: 'rgba(230, 237, 243, 0.65)',
+      fontSize: '15px',
+      letterSpacing: '0.5px',
+    }}>
+      正在加载页面...
+    </span>
   </div>
 )
 

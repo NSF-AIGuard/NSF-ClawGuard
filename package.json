@@ -1,6 +1,6 @@
 {
   "name": "nsf-clawguard",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "NSF-ClawGuard - Real-time monitoring of the security status on the client side, intelligently identifying risks and providing handling solutions",
   "main": "./dist/index.mjs",
   "type": "module",
@@ -16,8 +16,8 @@
     "openclaw.plugin.json",
     "clawdbot.plugin.json",
     "LICENSE",
-    "README-CN.md",
-    "README.md"
+    "README.md",
+    "README-CN.md"
   ],
   "keywords": [
     "openclaw",

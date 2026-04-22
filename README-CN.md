@@ -27,6 +27,7 @@ NSF-ClawGuard 是一款适用于 [OpenClaw](https://github.com/openclaw) 和 [Cl
 
 ### 🛡️ 运行时防护
 - **命令安全监控** — 在执行前拦截和检查危险 Shell 命令（反弹 Shell、文件破坏、权限提升、凭证窃取、进程注入等）
+- **命令拦截阻止** — 当 `block_on_violation` 策略启用时，危险命令将被主动阻止执行，而非仅记录日志
 - **内容安全审查** — 通过本地规则或远程 API 监控用户输入和 AI 输出中的恶意内容
 - **工具调用审计** — 记录所有工具调用（`exec`、`write`、`edit`）的耗时、参数和执行状态
 - **Gateway 认证监控** — 实时监控 Gateway WebSocket 认证事件，支持暴力破解检测
@@ -51,13 +52,15 @@ NSF-ClawGuard/
 ├── index.ts                     # 插件入口 & 事件钩子注册
 ├── src/
 │   ├── api.ts                   # 远程 API：违规上报、心跳、内容检测
+│   ├── cloudPolicyConfig.ts     # 云端策略获取、LLM 代理模式管理
 │   ├── command-security.ts      # 80+ 条危险命令模式检测规则
 │   ├── config-scanner.ts        # 30+ 条配置安全扫描规则
-│   ├── skill-scanner.ts         # 8 大类 Skill 代码静态分析
-│   ├── database.ts              # SQLite 数据库 (sql.js) 含 4 张数据表
+│   ├── skill-scanner.ts         # 19 大类 Skill 代码静态分析
+│   ├── database.ts              # SQLite 数据库 (sql.js) 含 6 张数据表
 │   ├── event-store.ts           # 统一事件存储 & 分类映射
 │   ├── logger.ts                # 带前缀的日志封装
 │   ├── request.ts               # HTTP 客户端 (HMAC 认证)
+│   ├── monitor-log-file.ts      # 实时日志文件监控（发布订阅代理）
 │   ├── constants.ts             # 共享常量
 │   ├── types.ts                 # TypeScript 类型定义
 │   ├── utils.ts                 # 工具函数
@@ -137,7 +140,14 @@ npm run build:full
 | **执行安全** | 6 条 | 执行安全配置、写入路径限制、拒绝命令列表、MCP 信任配置 |
 | **速率限制** | 1 条 | 速率限制配置与阈值验证 |
 
-### Skill 扫描器（8 大类）
+此外，扫描器还检测：
+- **危险标志检测** — 识别不安全的布尔标志（如 `disableSafety`、`bypassAuth`、`noTLS`）
+- **环境变量注入** — 检测 `LD_PRELOAD`、`PYTHONPATH`、`GIT_SSH_COMMAND` 等危险环境变量引用
+- **私钥泄露** — 检测配置中的 `.pem`、`.key`、`.p12` 文件路径
+- **加密货币助记词泄露** — 检测 BIP39 助记词、钱包种子和私钥
+- **Gateway 绑定暴露** — 当 Gateway 绑定到 `0.0.0.0` 或 `::` 时发出警告
+
+### Skill 扫描器（19 大类）
 
 对所有已安装的 Skill 进行静态安全分析：
 
@@ -149,6 +159,17 @@ npm run build:full
 6. **危险函数组合** — 检测高风险组合：`child_process + fetch`、`eval + fetch`、`writeFile + exec` 等
 7. **元数据质量** — 检查缺失或不完整的 `package.json` 字段（description、author 等）
 8. **安装钩子风险** — 检测危险 npm scripts，如 `curl | bash`
+9. **代码混淆检测** — 检测 pickle 反序列化、Base64 解码管道、`String.fromCharCode`、零宽字符、Unicode RTL 覆盖、`<script>`/`<iframe>` 注入
+10. **命令执行扩展检测** — 检测 `importlib.import_module`、`subprocess` 的 `shell=True`、`os.system()`、`pty.spawn`、`ctypes`/`cffi` 原生代码加载、Java/.NET 反序列化
+11. **基础设施滥用** — 检测 `chmod 777`、`0.0.0.0` 绑定、Docker 特权模式、`LD_PRELOAD` 注入、匿名隧道服务（ngrok、serveo、cloudflare）
+12. **持久化检测** — 检测 crontab 修改、LaunchAgent 创建、Shell RC 文件写入、SSH 密钥注入、SOUL.md 篡改、路径遍历模式
+13. **提示注入扩展检测** — 检测越狱载荷（DAN 模式）、对 AI 审查者的社会工程、角色重分配、系统提示词提取、多语言注入（中文/俄语）、HTML 注释隐藏指令
+14. **数据泄露** — 检测 SSH 密钥访问、HTTP 凭证外传、键盘记录、剪贴板访问、DNS 外传、浏览器数据访问、环境变量回显
+15. **横向移动** — 检测顺序端口扫描、DNS TXT 查询、WebSocket 连接外部主机、Docker 镜像导出、`socat` 中继工具
+16. **硬编码密钥检测** — 检测 OpenAI/AWS/GitHub/Stripe API 密钥、JWT Token、含密码的数据库连接串、钱包种子短语
+17. **自主性滥用** — 检测自修改代码、动态代码生成+执行、混淆意图、远程指令获取、幻觉包引用
+18. **逻辑漏洞** — 检测通配符导入（`import *`）、裸 `except` 子句、写入敏感路径、详细错误模式暴露
+19. **金融攻击** — 检测钱包抽 drained 模式、加密货币挖矿（XMRig、Coinhive）、Memecoin 启动器域名、Pump 代币垃圾信息
 
 ### 命令安全监控（80+ 模式）
 
@@ -173,7 +194,7 @@ npm run build:full
 |------|----------|----------|
 | `message_received` | 用户发送消息 | 对输入内容进行安全审查 |
 | `agent_end` | AI Agent 完成响应 | 对输出内容进行安全审查 |
-| `before_tool_call` | 工具执行前 | 对 `exec`、`write`、`edit` 进行命令安全检查 |
+| `before_tool_call` | 工具执行前 | 对 `exec`、`write`、`edit` 进行命令安全检查；当 `block_on_violation` 启用时会阻止执行 |
 | `after_tool_call` | 工具执行后 | 记录工具调用的耗时和结果 |
 | `llm_output` | LLM 响应接收时 | 记录 Token 使用量指标 |
 
@@ -185,10 +206,12 @@ npm run build:full
 
 | 数据表 | 用途 | 关键字段 |
 |--------|------|----------|
-| `security_events` | 所有安全发现 | category, sub_category, threat_level, event_time |
-| `token_usage` | AI Token 消耗记录 | session_key, model, input/output/total tokens |
-| `tool_call` | 工具调用记录 | tool_name, params, result, duration_ms |
+| `security_events` | 所有安全发现 | category, sub_category, threat_level, event_time, source, action |
+| `token_usage` | AI Token 消耗记录 | session_key, model, input/output/total tokens, cache_read/write |
+| `tool_call` | 工具调用记录 | tool_name, params, result, duration_ms, action |
 | `gateway_auth_logs` | Gateway 认证事件 | event_type, conn_id, remote_ip, client |
+| `policy_config` | 云端策略配置 | policy_version, skill/command/config_check_enabled, block_on_violation, llm_mode |
+| `default_model_config` | 默认 LLM 模型备份 | provider_id, model_id |
 
 ---
 
@@ -227,6 +250,8 @@ npm run build:full
 | `GET /lm-securty/overview` | 仪表盘总览统计 |
 | `GET /lm-securty/events` | 安全事件列表 |
 | `GET /lm-securty/securityEventStats` | 7 天事件趋势图数据 |
+| `GET /lm-securty/eventStats` | 事件统计汇总 |
+| `GET /lm-securty/riskDistribution` | 风险分布图数据 |
 | `GET /lm-securty/tokenUsage` | Token 用量记录 |
 | `GET /lm-securty/toolCall` | 工具调用记录 |
 | `GET /lm-securty/gatewayAuthLogs` | Gateway 认证日志 |

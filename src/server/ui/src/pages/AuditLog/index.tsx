@@ -11,8 +11,8 @@ import OverviewStats from './components/OverviewStats'
 import TokenConsumption from './components/TokenConsumption'
 import ToolCallTable from './components/ToolCallTable'
 import GatewayAuthLogTable from './components/GatewayAuthLogTable'
-import type { TokenConsumptionRecord, ToolCallRecord, OverviewStatistics, GatewayAuthLogRecord } from '@/types/auditLog'
-import { getTokenConsumptionList, getOverviewStatistics, getToolCallList, getGatewayAuthLogList } from '@/api/auditLog'
+import type { OverviewStatistics } from '@/types/auditLog'
+import { getOverviewStatistics } from '@/api/auditLog'
 import styles from './index.module.less'
 
 const AuditLog: React.FC = () => {
@@ -20,10 +20,6 @@ const AuditLog: React.FC = () => {
   const [activeTab, setActiveTab] = useState('token')
 
   // 数据状态
-  // const [authData, setAuthData] = useState<AuthLogRecord[]>([])
-  const [tokenData, setTokenData] = useState<TokenConsumptionRecord[]>([])
-  const [toolCallData, setToolCallData] = useState<ToolCallRecord[]>([])
-  const [gatewayAuthData, setGatewayAuthData] = useState<GatewayAuthLogRecord[]>([])
   const [statistics, setStatistics] = useState<OverviewStatistics>({
     totalSessions: 0,
     todayTokenConsumption: 0,
@@ -38,18 +34,8 @@ const AuditLog: React.FC = () => {
   const fetchAllData = async () => {
     setLoading(true)
     try {
-      // Token 消耗使用真实 API，其余仍使用 Mock 数据
-      const tokenRes = await getTokenConsumptionList()
       const statisticsRes = await getOverviewStatistics()
-      const toolCallRes = await getToolCallList()
-      const gatewayAuthRes = await getGatewayAuthLogList()
-
-      // setAuthData(mockAuthLogData())
-      setTokenData(tokenRes)
       setStatistics(statisticsRes)
-      setToolCallData(toolCallRes)
-      setGatewayAuthData(gatewayAuthRes)
-      // setStatistics(mockOverviewStatistics())
     } catch (error) {
       console.error('加载审计日志数据失败:', error)
     } finally {
@@ -71,7 +57,7 @@ const AuditLog: React.FC = () => {
           Token 消耗
         </span>
       ),
-      children: <TokenConsumption data={tokenData} />,
+      children: <TokenConsumption />,
     },
     {
       key: 'tool',
@@ -81,7 +67,7 @@ const AuditLog: React.FC = () => {
           工具调用
         </span>
       ),
-      children: <ToolCallTable data={toolCallData} />,
+      children: <ToolCallTable />,
     },
     {
       key: 'gatewayAuth',
@@ -91,7 +77,7 @@ const AuditLog: React.FC = () => {
           网关认证日志
         </span>
       ),
-      children: <GatewayAuthLogTable data={gatewayAuthData} />,
+      children: <GatewayAuthLogTable />,
     },
   ]
 
