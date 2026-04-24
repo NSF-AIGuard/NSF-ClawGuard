@@ -6,6 +6,7 @@ import {
   toolCallHandler,
   gatewayAuthLogHandler,
 } from "./audit.js";
+import { getConfigHandler, saveConfigHandler } from "./config.js";
 import createRouterApp, { jsonResponseMiddleware } from "./router.js";
 import type { OpenClawPluginApi } from "../types.js";
 
@@ -52,6 +53,15 @@ export default function registerHttpRoute(api: OpenClawPluginApi) {
     match: "exact",
   });
   app.get("/lm-securty/riskDistribution", riskDistributionHandler, {
+    auth: "plugin",
+    match: "exact",
+  });
+  // 不支持restful 格式的api,openclaw 框架本身限制
+  app.get("/lm-securty/getConfig", getConfigHandler, {
+    auth: "plugin",
+    match: "exact",
+  });
+  app.post("/lm-securty/saveConfig", saveConfigHandler, {
     auth: "plugin",
     match: "exact",
   });

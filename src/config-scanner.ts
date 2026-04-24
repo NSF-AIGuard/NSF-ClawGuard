@@ -600,95 +600,95 @@ const securityRules: Array<{
   },
 
   // ========== 凭证安全: 速率限制检测 (高标准) ==========
-  {
-    id: 'rate-limiting',
-    severity: 'medium',
-    check: (cfg) => {
-      const rateLimit = cfg.gateway?.rateLimit;
+  // {
+  //   id: 'rate-limiting',
+  //   severity: 'medium',
+  //   check: (cfg) => {
+  //     const rateLimit = cfg.gateway?.rateLimit;
 
-      if (!rateLimit || rateLimit.enabled === false) {
-        return {
-          rule: 'rate-limiting',
-          severity: 'critical',
-          path: 'gateway.rateLimit',
-          message: '未配置访问速率限制,网关存在暴力破解和DDoS攻击风险',
-          currentValue: rateLimit?.enabled ?? '未配置',
-          suggestion: '请立即启用速率限制,高安全标准建议: windowMs: 60000, maxRequests: 30'
-        };
-      }
+  //     if (!rateLimit || rateLimit.enabled === false) {
+  //       return {
+  //         rule: 'rate-limiting',
+  //         severity: 'critical',
+  //         path: 'gateway.rateLimit',
+  //         message: '未配置访问速率限制,网关存在暴力破解和DDoS攻击风险',
+  //         currentValue: rateLimit?.enabled ?? '未配置',
+  //         suggestion: '请立即启用速率限制,高安全标准建议: windowMs: 60000, maxRequests: 30'
+  //       };
+  //     }
 
-      // 高标准: 超过50次/分钟即为警告
-      if (rateLimit.maxRequests && rateLimit.maxRequests > 50) {
-        return {
-          rule: 'rate-limiting',
-          severity: 'medium',
-          path: 'gateway.rateLimit.maxRequests',
-          message: `速率限制阈值过高 (${rateLimit.maxRequests}次/窗口期),防护效果有限`,
-          currentValue: rateLimit.maxRequests,
-          suggestion: '高安全标准建议将 maxRequests 设置为不超过 30 次/分钟'
-        };
-      }
+  //     // 高标准: 超过50次/分钟即为警告
+  //     if (rateLimit.maxRequests && rateLimit.maxRequests > 50) {
+  //       return {
+  //         rule: 'rate-limiting',
+  //         severity: 'medium',
+  //         path: 'gateway.rateLimit.maxRequests',
+  //         message: `速率限制阈值过高 (${rateLimit.maxRequests}次/窗口期),防护效果有限`,
+  //         currentValue: rateLimit.maxRequests,
+  //         suggestion: '高安全标准建议将 maxRequests 设置为不超过 30 次/分钟'
+  //       };
+  //     }
 
-      // 检查窗口期是否合理
-      if (rateLimit.windowMs && rateLimit.windowMs < 30000) {
-        return {
-          rule: 'rate-limiting',
-          severity: 'medium',
-          path: 'gateway.rateLimit.windowMs',
-          message: `速率限制窗口期过短 (${rateLimit.windowMs}ms),可能影响正常访问`,
-          currentValue: rateLimit.windowMs,
-          suggestion: '建议窗口期设置为 60000ms (1分钟) 或更长'
-        };
-      }
+  //     // 检查窗口期是否合理
+  //     if (rateLimit.windowMs && rateLimit.windowMs < 30000) {
+  //       return {
+  //         rule: 'rate-limiting',
+  //         severity: 'medium',
+  //         path: 'gateway.rateLimit.windowMs',
+  //         message: `速率限制窗口期过短 (${rateLimit.windowMs}ms),可能影响正常访问`,
+  //         currentValue: rateLimit.windowMs,
+  //         suggestion: '建议窗口期设置为 60000ms (1分钟) 或更长'
+  //       };
+  //     }
 
-      return null;
-    }
-  },
+  //     return null;
+  //   }
+  // },
 
-  // ========== 会话安全: Session TTL 检测 (高标准) ==========
-  {
-    id: 'session-ttl',
-    severity: 'critical',
-    check: (cfg) => {
-      const timeout = cfg.session?.timeout;
+  // // ========== 会话安全: Session TTL 检测 (高标准) ==========
+  // {
+  //   id: 'session-ttl',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const timeout = cfg.session?.timeout;
 
-      // 高标准: 未设置=Critical, >12小时=Critical, >4小时=Warning
-      if (!timeout) {
-        return {
-          rule: 'session-ttl',
-          severity: 'critical',
-          path: 'session.timeout',
-          message: `会话超时时间未设置,存在会话劫持和未授权访问风险`,
-          currentValue: '未设置',
-          suggestion: '请立即设置会话超时时间,建议不超过 14400 秒 (4小时)'
-        };
-      }
+  //     // 高标准: 未设置=Critical, >12小时=Critical, >4小时=Warning
+  //     if (!timeout) {
+  //       return {
+  //         rule: 'session-ttl',
+  //         severity: 'critical',
+  //         path: 'session.timeout',
+  //         message: `会话超时时间未设置,存在会话劫持和未授权访问风险`,
+  //         currentValue: '未设置',
+  //         suggestion: '请立即设置会话超时时间,建议不超过 14400 秒 (4小时)'
+  //       };
+  //     }
 
-      if (timeout > 43200) { // 超过12小时
-        return {
-          rule: 'session-ttl',
-          severity: 'critical',
-          path: 'session.timeout',
-          message: `会话超时时间过长 (${timeout}秒/${(timeout/3600).toFixed(1)}小时),安全风险极高`,
-          currentValue: timeout,
-          suggestion: '请将会话超时时间设置为不超过 14400 秒 (4小时)'
-        };
-      }
+  //     if (timeout > 43200) { // 超过12小时 43200/60
+  //       return {
+  //         rule: 'session-ttl',
+  //         severity: 'critical',
+  //         path: 'session.timeout',
+  //         message: `会话超时时间过长 (${timeout}秒/${(timeout/3600).toFixed(1)}小时),安全风险极高`,
+  //         currentValue: timeout,
+  //         suggestion: '请将会话超时时间设置为不超过 14400 秒 (4小时)'
+  //       };
+  //     }
 
-      if (timeout > 14400) { // 超过4小时
-        return {
-          rule: 'session-ttl',
-          severity: 'medium',
-          path: 'session.timeout',
-          message: `会话超时时间过长 (${timeout}秒/${(timeout/3600).toFixed(1)}小时),建议进一步缩短`,
-          currentValue: timeout,
-          suggestion: '高安全标准建议将会话超时时间设置为不超过 14400 秒 (4小时)'
-        };
-      }
+  //     if (timeout > 14400) { // 超过4小时
+  //       return {
+  //         rule: 'session-ttl',
+  //         severity: 'medium',
+  //         path: 'session.timeout',
+  //         message: `会话超时时间过长 (${timeout}秒/${(timeout/3600).toFixed(1)}小时),建议进一步缩短`,
+  //         currentValue: timeout,
+  //         suggestion: '高安全标准建议将会话超时时间设置为不超过 14400 秒 (4小时)'
+  //       };
+  //     }
 
-      return null;
-    }
-  },
+  //     return null;
+  //   }
+  // },
 
   // ========== 网络安全: 浏览器控制端口隔离 ==========
   {
@@ -746,44 +746,44 @@ const securityRules: Array<{
   },
 
   // ========== 网络安全: 跨域策略安全 ==========
-  {
-    id: 'cors-wildcard',
-    severity: 'critical',
-    check: (cfg) => {
-      const cors = cfg.gateway?.cors;
-      if (!cors) return null;
+  // {
+  //   id: 'cors-wildcard',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const cors = cfg.gateway?.cors;
+  //     if (!cors) return null;
 
-      if (!cors.enabled) return null;
+  //     if (!cors.enabled) return null;
 
-      const origins = cors.origins;
-      if (!origins || origins.length === 0) return null;
+  //     const origins = cors.origins;
+  //     if (!origins || origins.length === 0) return null;
 
-      if (origins.includes('*') || origins.includes('http://*') || origins.includes('https://*')) {
-        return {
-          rule: 'cors-wildcard',
-          severity: 'critical',
-          path: 'gateway.cors.origins',
-          message: 'CORS跨域策略配置使用通配符(*) ,存在跨站请求伪造风险',
-          currentValue: origins,
-          suggestion: '请使用具体的可信域名列表,避免使用通配符'
-        };
-      }
+  //     if (origins.includes('*') || origins.includes('http://*') || origins.includes('https://*')) {
+  //       return {
+  //         rule: 'cors-wildcard',
+  //         severity: 'critical',
+  //         path: 'gateway.cors.origins',
+  //         message: 'CORS跨域策略配置使用通配符(*) ,存在跨站请求伪造风险',
+  //         currentValue: origins,
+  //         suggestion: '请使用具体的可信域名列表,避免使用通配符'
+  //       };
+  //     }
 
-      const httpOrigins = origins.filter(o => o.startsWith('http://'));
-      if (httpOrigins.length > 0) {
-        return {
-          rule: 'cors-wildcard',
-          severity: 'critical',
-          path: 'gateway.cors.origins',
-          message: 'CORS跨域策略包含不安全的HTTP源,存在中间人攻击风险',
-          currentValue: origins,
-          suggestion: '请使用HTTPS源,确保通信加密'
-        };
-      }
+  //     const httpOrigins = origins.filter(o => o.startsWith('http://'));
+  //     if (httpOrigins.length > 0) {
+  //       return {
+  //         rule: 'cors-wildcard',
+  //         severity: 'critical',
+  //         path: 'gateway.cors.origins',
+  //         message: 'CORS跨域策略包含不安全的HTTP源,存在中间人攻击风险',
+  //         currentValue: origins,
+  //         suggestion: '请使用HTTPS源,确保通信加密'
+  //       };
+  //     }
 
-      return null;
-    }
-  },
+  //     return null;
+  //   }
+  // },
 
   // ========== 网络安全: 远程接入安全 ==========
   {
@@ -1096,46 +1096,46 @@ const securityRules: Array<{
     }
   },
 
-  {
-    id: 'log-level-verbose',
-    severity: 'critical',
-    check: (cfg) => {
-      const logLevel = cfg.log?.level;
-      if (!logLevel) return null;
+  // {
+  //   id: 'log-level-verbose',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const logLevel = cfg.log?.level;
+  //     if (!logLevel) return null;
 
-      // trace/debug 级别可能泄露敏感信息
-      if (logLevel === 'trace' || logLevel === 'debug') {
-        return {
-          rule: 'log-level-verbose',
-          severity: 'critical',
-          path: 'log.level',
-          message: '日志级别设置为 trace/debug,可能泄露敏感信息',
-          currentValue: logLevel,
-          suggestion: '使用 "info" 或 "warn" 级别'
-        };
-      }
-      return null;
-    }
-  },
+  //     // trace/debug 级别可能泄露敏感信息
+  //     if (logLevel === 'trace' || logLevel === 'debug') {
+  //       return {
+  //         rule: 'log-level-verbose',
+  //         severity: 'critical',
+  //         path: 'log.level',
+  //         message: '日志级别设置为 trace/debug,可能泄露敏感信息',
+  //         currentValue: logLevel,
+  //         suggestion: '使用 "info" 或 "warn" 级别'
+  //       };
+  //     }
+  //     return null;
+  //   }
+  // },
 
-  {
-    id: 'log-include-sensitive',
-    severity: 'critical',
-    check: (cfg) => {
-      const includeSensitive = cfg.log?.includeSensitive;
-      if (includeSensitive === true) {
-        return {
-          rule: 'log-include-sensitive',
-          severity: 'critical',
-          path: 'log.includeSensitive',
-          message: '日志配置为包含敏感信息',
-          currentValue: true,
-          suggestion: '设置为 false,避免在日志中记录密码、token等'
-        };
-      }
-      return null;
-    }
-  },
+  // {
+  //   id: 'log-include-sensitive',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const includeSensitive = cfg.log?.includeSensitive;
+  //     if (includeSensitive === true) {
+  //       return {
+  //         rule: 'log-include-sensitive',
+  //         severity: 'critical',
+  //         path: 'log.includeSensitive',
+  //         message: '日志配置为包含敏感信息',
+  //         currentValue: true,
+  //         suggestion: '设置为 false,避免在日志中记录密码、token等'
+  //       };
+  //     }
+  //     return null;
+  //   }
+  // },
 
   {
     id: 'session-timeout-missing',
@@ -1159,34 +1159,34 @@ const securityRules: Array<{
     }
   },
 
-  {
-    id: 'mcp-untrusted-commands',
-    severity: 'critical',
-    check: (cfg) => {
-      const mcp = cfg.mcp?.entries;
-      if (!mcp) return null;
+  // {
+  //   id: 'mcp-untrusted-commands',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const mcp = cfg.mcp?.entries;
+  //     if (!mcp) return null;
 
-      for (const [name, entry] of Object.entries(mcp)) {
-        if (!entry.enabled) continue;
+  //     for (const [name, entry] of Object.entries(mcp)) {
+  //       if (!entry.enabled) continue;
 
-        const command = entry.command;
-        if (!command) continue;
+  //       const command = entry.command;
+  //       if (!command) continue;
 
-        // 检查是否包含危险的shell命令
-        if (command.includes('rm -rf') || command.includes('> /dev/') || command.includes('chmod 777')) {
-          return {
-            rule: 'mcp-untrusted-commands',
-            severity: 'critical',
-            path: `mcp.entries.${name}.command`,
-            message: `MCP "${name}" 配置包含危险命令`,
-            currentValue: command.substring(0, 30) + '...',
-            suggestion: '审查并移除危险的命令执行'
-          };
-        }
-      }
-      return null;
-    }
-  },
+  //       // 检查是否包含危险的shell命令
+  //       if (command.includes('rm -rf') || command.includes('> /dev/') || command.includes('chmod 777')) {
+  //         return {
+  //           rule: 'mcp-untrusted-commands',
+  //           severity: 'critical',
+  //           path: `mcp.entries.${name}.command`,
+  //           message: `MCP "${name}" 配置包含危险命令`,
+  //           currentValue: command.substring(0, 30) + '...',
+  //           suggestion: '审查并移除危险的命令执行'
+  //         };
+  //       }
+  //     }
+  //     return null;
+  //   }
+  // },
 
   {
     id: 'plugin-source-untrusted',
@@ -1215,34 +1215,34 @@ const securityRules: Array<{
     }
   },
 
-  {
-    id: 'webhook-url-insecure',
-    severity: 'critical',
-    check: (cfg) => {
-      const webhooks = cfg.hooks?.webhooks?.entries;
-      if (!webhooks) return null;
+  // {
+  //   id: 'webhook-url-insecure',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const webhooks = cfg.hooks?.webhooks?.entries;
+  //     if (!webhooks) return null;
 
-      for (const [name, entry] of Object.entries(webhooks)) {
-        if (!entry.enabled) continue;
+  //     for (const [name, entry] of Object.entries(webhooks)) {
+  //       if (!entry.enabled) continue;
 
-        const url = entry.url;
-        if (!url) continue;
+  //       const url = entry.url;
+  //       if (!url) continue;
 
-        // 检查是否使用HTTP而非HTTPS
-        if (url.startsWith('http://')) {
-          return {
-            rule: 'webhook-url-insecure',
-            severity: 'critical',
-            path: `hooks.webhooks.entries.${name}.url`,
-            message: `Webhook "${name}" 使用不安全的HTTP协议`,
-            currentValue: url,
-            suggestion: '使用HTTPS确保传输安全'
-          };
-        }
-      }
-      return null;
-    }
-  },
+  //       // 检查是否使用HTTP而非HTTPS
+  //       if (url.startsWith('http://')) {
+  //         return {
+  //           rule: 'webhook-url-insecure',
+  //           severity: 'critical',
+  //           path: `hooks.webhooks.entries.${name}.url`,
+  //           message: `Webhook "${name}" 使用不安全的HTTP协议`,
+  //           currentValue: url,
+  //           suggestion: '使用HTTPS确保传输安全'
+  //         };
+  //       }
+  //     }
+  //     return null;
+  //   }
+  // },
 
   {
     id: 'default-port-exposed',
@@ -1288,52 +1288,52 @@ const securityRules: Array<{
     }
   },
 
-  {
-    id: 'write-no-restrictions',
-    severity: 'critical',
-    check: (cfg) => {
-      const writeConfig = cfg.tools?.write;
-      if (!writeConfig) return null;
+  // {
+  //   id: 'write-no-restrictions',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const writeConfig = cfg.tools?.write;
+  //     if (!writeConfig) return null;
 
-      const allowedPaths = writeConfig.allowedPaths;
-      // 允许写入根目录或系统目录
-      if (allowedPaths) {
-        if (allowedPaths.includes('/') || allowedPaths.includes('*') || allowedPaths.includes('**')) {
-          return {
-            rule: 'write-no-restrictions',
-            severity: 'critical',
-            path: 'tools.write.allowedPaths',
-            message: '文件写入无限制,允许写入任意路径',
-            currentValue: allowedPaths,
-            suggestion: '限制为特定工作目录'
-          };
-        }
-      }
-      return null;
-    }
-  },
+  //     const allowedPaths = writeConfig.allowedPaths;
+  //     // 允许写入根目录或系统目录
+  //     if (allowedPaths) {
+  //       if (allowedPaths.includes('/') || allowedPaths.includes('*') || allowedPaths.includes('**')) {
+  //         return {
+  //           rule: 'write-no-restrictions',
+  //           severity: 'critical',
+  //           path: 'tools.write.allowedPaths',
+  //           message: '文件写入无限制,允许写入任意路径',
+  //           currentValue: allowedPaths,
+  //           suggestion: '限制为特定工作目录'
+  //         };
+  //       }
+  //     }
+  //     return null;
+  //   }
+  // },
 
-  {
-    id: 'tailscale-remote-url-exposure',
-    severity: 'critical',
-    check: (cfg) => {
-      const ts = cfg.gateway?.tailscale;
-      const remoteUrl = cfg.gateway?.remoteUrl;
+  // {
+  //   id: 'tailscale-remote-url-exposure',
+  //   severity: 'critical',
+  //   check: (cfg) => {
+  //     const ts = cfg.gateway?.tailscale;
+  //     const remoteUrl = cfg.gateway?.remoteUrl;
 
-      // Tailscale开启且配置了远程URL但没有认证
-      if ((ts?.mode === 'on' || ts?.mode === 'enabled') && remoteUrl && !cfg.gateway?.auth?.token) {
-        return {
-          rule: 'tailscale-remote-url-exposure',
-          severity: 'critical',
-          path: 'gateway.tailscale',
-          message: 'Tailscale远程访问已启用但未配置认证',
-          currentValue: ts.mode,
-          suggestion: '确保 gateway.auth.token 已配置'
-        };
-      }
-      return null;
-    }
-  },
+  //     // Tailscale开启且配置了远程URL但没有认证
+  //     if ((ts?.mode === 'on' || ts?.mode === 'enabled') && remoteUrl && !cfg.gateway?.auth?.token) {
+  //       return {
+  //         rule: 'tailscale-remote-url-exposure',
+  //         severity: 'critical',
+  //         path: 'gateway.tailscale',
+  //         message: 'Tailscale远程访问已启用但未配置认证',
+  //         currentValue: ts.mode,
+  //         suggestion: '确保 gateway.auth.token 已配置'
+  //       };
+  //     }
+  //     return null;
+  //   }
+  // },
 
   {
     id: 'unverified-plugin-source',
@@ -1658,33 +1658,33 @@ const securityRules: Array<{
     }
   },
 
-  {
-    id: 'webhooks-enabled',
-    severity: 'medium',
-    check: (cfg) => {
-      const webhooks = cfg.hooks?.webhooks;
-      if (webhooks?.enabled) {
-        return {
-          rule: 'webhooks-enabled',
-          severity: 'medium',
-          path: 'hooks.webhooks.enabled',
-          message: 'Webhook 已启用,可能存在外部回调风险',
-          currentValue: true,
-          suggestion: '审查webhook目标URL是否可信'
-        };
-      }
-      return null;
-    }
-  },
+  // {
+  //   id: 'webhooks-enabled',
+  //   severity: 'medium',
+  //   check: (cfg) => {
+  //     const webhooks = cfg.hooks?.webhooks;
+  //     if (webhooks?.enabled) {
+  //       return {
+  //         rule: 'webhooks-enabled',
+  //         severity: 'medium',
+  //         path: 'hooks.webhooks.enabled',
+  //         message: 'Webhook 已启用,可能存在外部回调风险',
+  //         currentValue: true,
+  //         suggestion: '审查webhook目标URL是否可信'
+  //       };
+  //     }
+  //     return null;
+  //   }
+  // },
 
   {
     id: 'tailscale-enabled',
     severity: 'medium',
     check: (cfg) => {
       const ts = cfg.gateway?.tailscale;
-      if (ts?.mode === 'on' || ts?.mode === 'enabled') {
+      if (ts?.mode === 'funnel') {
         return {
-          rule: 'tailscale-enabled',
+          rule: 'tailscale-funnel',
           severity: 'medium',
           path: 'gateway.tailscale.mode',
           message: 'Tailscale 远程访问已启用',

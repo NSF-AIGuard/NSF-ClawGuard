@@ -187,7 +187,7 @@ const SecurityEventTable: React.FC<SecurityEventTableProps> = ({
           { key: "config_security", label: "配置安全" },
           { key: "skill_security", label: "Skill安全" },
           { key: "command_violation", label: "危险命令" },
-          { key: "content_check", label: "上下文检查" },
+          { key: "content_check", label: "输入输出检查" },
         ].map((item) => (
           <button
             key={item.key}

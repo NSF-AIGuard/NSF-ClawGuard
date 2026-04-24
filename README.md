@@ -19,7 +19,7 @@ NSF-ClawGuard is a comprehensive real-time security monitoring plugin for [OpenC
 ## ✨ Key Features
 
 ### 🔍 Multi-Layered Security Scanning
-- **Configuration Security Scanner** — Static analysis of `~/.openclaw/openclaw.json` with 30+ built-in security rules covering token security, network security, session security, data protection, plugin security, execution security, and rate limiting
+- **Configuration Security Scanner** — Static analysis of `~/.openclaw/openclaw.json` with 30+ built-in security rules covering token security, network security, session security, data protection, plugin security, execution security
 - **SOUL.md Prompt Injection Detection** — Identifies prompt injection attacks in SOUL.md configuration files
 - **Skill Code Static Scanner** — Deep analysis of installed skills covering SSRF, prompt injection, RCE, credential theft, sensitive path access, and dangerous function combinations
 - **npm Dependency Audit** — Detects known vulnerabilities in project dependencies
@@ -30,7 +30,7 @@ NSF-ClawGuard is a comprehensive real-time security monitoring plugin for [OpenC
 - **Command Blocking** — When `block_on_violation` policy is enabled, dangerous commands are actively blocked from execution, not just logged
 - **Content Safety Check** — Monitors both user input and AI output for malicious content via local rules or remote API
 - **Tool Call Auditing** — Logs all tool invocations (`exec`, `write`, `edit`) with duration, parameters, and success status
-- **Gateway Authentication Monitoring** — Real-time monitoring of Gateway WebSocket authentication events with brute-force detection
+- **Gateway Authentication Monitoring** — Real-time monitoring of Gateway WebSocket authentication events
 
 ### 📊 Observability
 - **Web Dashboard** — React-based security dashboard with event overview, threat distribution charts, token usage statistics, and gateway auth logs
@@ -138,7 +138,6 @@ Scans `~/.openclaw/openclaw.json` across 7 security domains:
 | **Data Protection** | 3 rules | Workspace restriction, verbose logging, sensitive info in logs |
 | **Plugin Security** | 3 rules | Plugin whitelist, source verification, internal hooks |
 | **Execution Security** | 6 rules | Exec security profile, write path restrictions, denied commands, MCP trust |
-| **Rate Limiting** | 1 rule | Rate limit configuration and threshold validation |
 
 Additionally, the scanner detects:
 - **Dangerous Flags** — Identifies insecure boolean flags (e.g., `disableSafety`, `bypassAuth`, `noTLS`)

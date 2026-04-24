@@ -3,7 +3,7 @@ import { checkCommandSafety } from "./command-security.js";
 import { getLogger } from "./logger.js";
 import * as fs from "fs";
 import * as path from "path";
-import { currentPluginRoot, restartGateway } from "./utils.js";
+import { currentPluginRoot } from "./utils.js";
 import {
   ensureDb,
   dbQueryGWAuthLogs,
@@ -14,7 +14,7 @@ import {
 } from "./database.js";
 import type FormData from "form-data";
 import type { IInputMsgData } from "./types.js";
-import { IPolicyResponseData, response2ConfigAndSave, updateCurrentPolicyConfig, updateLLMConfigAndSaveConfig } from "./cloudPolicyConfig.js";
+import { IPolicyResponseData, updateCurrentPolicyConfig, updateLLMConfigAndSaveConfig } from "./cloudPolicyConfig.js";
 
 interface IViolation {
   command: string;
@@ -646,12 +646,6 @@ interface HeartbeatResponseData {
   heartbeat_interval: number;
 }
 
-/** 完整的心跳响应体 */
-interface HeartbeatResponse {
-  errCode: number;
-  errMsg: string;
-  data: HeartbeatResponseData;
-}
 
 /**
  * 处理策略更新
@@ -853,6 +847,7 @@ async function reportSecurityEventLogs(): Promise<void> {
       event_time: log.event_time as string,
       recommendation: log.recommendation as string,
       event_info: log.event_info as string,
+      action: log.action as string
     }));
 
     await requestManager.post<

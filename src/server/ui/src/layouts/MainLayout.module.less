@@ -138,6 +138,18 @@
       }
     }
 
+    // 云端接入图标
+    &-cloud-icon {
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 16px;
+      cursor: pointer;
+      margin: 0 8px;
+
+      &:hover {
+        color: rgb(31, 178, 89);
+      }
+    }
+
     // 右侧区域背景色
     &-right {
       padding: 0 16px;
@@ -235,6 +247,50 @@
       border-radius: 3px;
     }
   }
+}
+
+// 云端配置模态框
+.cloudModal {
+  :global {
+    .ant-modal-content {
+      background-color: #2a3140;
+      color: rgba(255, 255, 255, 0.85);
+    }
+    .ant-modal-header {
+      background-color: #2a3140;
+    }
+    .ant-modal-title {
+      color: rgba(255, 255, 255, 0.85);
+    }
+    .ant-modal-close {
+      color: rgba(255, 255, 255, 0.45);
+      &:hover {
+        color: rgba(255, 255, 255, 0.75);
+      }
+    }
+    .ant-form-item-label > label {
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 500;
+    }
+    .ant-input,
+    .ant-input-password {
+      background-color: #4f5257;
+      color: rgba(255, 255, 255, 0.85);
+      border-color: #30363d;
+    }
+    .ant-input::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+    }
+    .ant-input-affix-wrapper {
+      background-color: #4f5257;
+      border-color: #30363d;
+    }
+  }
+}
+
+// 云端配置表单
+.cloudForm {
+  margin-top: 16px;
 }
 
 // 响应式设计

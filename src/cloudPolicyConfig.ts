@@ -1,14 +1,13 @@
 import { getLogger } from "./logger.js";
 import * as fs from "fs";
 import * as path from "path";
-import { exec, execSync, spawn } from "child_process";
-import { currentPluginRoot, openclawRoot, restartGateway } from "./utils.js";
+import { execSync } from "child_process";
+import { openclawRoot, restartGateway } from "./utils.js";
 import {
     dbGetLatestPolicyConfig,
     dbUpsertPolicyConfig,
     dbSaveDefaultModel,
     dbGetDefaultModel,
-    dbUpdateNeedSetLLM,
     type PolicyConfig,
 } from "./database.js";
 import { stopHeartbeatReporter } from "./api.js";
@@ -280,7 +279,7 @@ export async function updateLLMConfigAndSaveConfig(currentConfig: PolicyConfig |
 }
 
 async function getOpenclawDefaultModel(): Promise<{ provider_id: string; model_id: string } | null> {
-    const logger = getLogger();
+    // const logger = getLogger();
 
     const config = openclawConfig;
     const primaryModel = (config as any)?.agents?.defaults?.model?.primary;

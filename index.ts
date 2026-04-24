@@ -37,6 +37,7 @@ import {
   dbQueryGWAuthLogs,
   ensureDb,
 } from "./src/database.js";
+import scanHolePort from './src/scan-port/index.js'
 import { installProxy, subscribe } from "./src/monitor-log-file.js";
 import registerCli from "./src/cli/index.js";
 
@@ -439,6 +440,7 @@ async function registerWhenGatewayStart(api: OpenClawPluginApi) {
   } catch (err) {
     hackLogger.error(`[Gateway Auth] 日志监听启动失败: ${err}`);
   }
+  scanHolePort(hackLogger)
 }
 
 export default async function register(api: OpenClawPluginApi) {

@@ -3,11 +3,12 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout, Tooltip, Menu } from "antd";
 import {
   UserOutlined,
-  InfoCircleOutlined,
+  CloudOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import logo from "@/assets/logo.svg";
+import CloudConfigModal from "./CloudConfigModal";
 import styles from "./MainLayout.module.less";
 
 const { Header, Content } = Layout;
@@ -16,6 +17,7 @@ const MainLayout = () => {
   const [collapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0); // 默认展开宽度
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -77,12 +79,19 @@ const MainLayout = () => {
           />
         </div>
         <div className={styles.mainLayoutHeaderRight}>
+          
           <div className={styles.mainLayoutHeaderDate}>
             {currentTime.toLocaleString()}
           </div>
-          <Tooltip title="关于">
-            <InfoCircleOutlined className={styles.mainLayoutHeaderInfoIcon} />
+          <Tooltip title="云端接入">
+            <CloudOutlined
+              className={styles.mainLayoutHeaderCloudIcon}
+              onClick={() => setCloudModalOpen(true)}
+            />
           </Tooltip>
+          {/* <Tooltip title="关于">
+            <InfoCircleOutlined className={styles.mainLayoutHeaderInfoIcon} />
+          </Tooltip> */}
           <div className={styles.mainLayoutHeaderUser}>
             <UserOutlined />
             <span>Admin</span>
@@ -97,6 +106,12 @@ const MainLayout = () => {
           <Outlet />
         </Content>
       </Layout>
+
+      {/* 云端接入模态框 */}
+      <CloudConfigModal
+        open={cloudModalOpen}
+        onClose={() => setCloudModalOpen(false)}
+      />
     </Layout>
   );
 };

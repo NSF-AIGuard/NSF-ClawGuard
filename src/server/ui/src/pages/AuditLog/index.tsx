@@ -4,7 +4,6 @@ import {
   DollarOutlined,
   ToolOutlined,
   ReloadOutlined,
-  DownloadOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import OverviewStats from './components/OverviewStats'
@@ -108,13 +107,13 @@ const AuditLog: React.FC = () => {
             >
               刷新数据
             </Button>
-            <Button
+            {/* <Button
               icon={<DownloadOutlined />}
               type="primary"
               className={styles.exportButton}
             >
               导出报告
-            </Button>
+            </Button> */}
           </Space>
         </div>
 

@@ -1,6 +1,6 @@
 {
   "name": "nsf-clawguard",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "NSF-ClawGuard - Real-time monitoring of the security status on the client side, intelligently identifying risks and providing handling solutions",
   "main": "./dist/index.mjs",
   "type": "module",
